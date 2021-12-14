@@ -1,6 +1,8 @@
-#include <stdio.h>
+
 
 #pragma once
+#include <stdio.h>
+#include "esp_types.h"
 
 /** BNO055 Address Alternative **/
 #define BNO055_ADDRESS_A (0x28)
@@ -20,7 +22,9 @@ typedef enum {
     /* Page id register definition */
     BNO055_PAGE_ID_ADDR = 0X07,
 
-    /* PAGE0 REGISTER DEFINITION START*/
+    /* PAGE0 REGISTERS */
+
+    /* Chip IDs */
     BNO055_CHIP_ID_ADDR = 0x00,
     BNO055_ACCEL_REV_ID_ADDR = 0x01,
     BNO055_MAG_REV_ID_ADDR = 0x02,
@@ -95,6 +99,7 @@ typedef enum {
     BNO055_SELFTEST_RESULT_ADDR = 0X36,
     BNO055_INTR_STAT_ADDR = 0X37,
 
+    /* System Statues registers */
     BNO055_SYS_CLK_STAT_ADDR = 0X38,
     BNO055_SYS_STAT_ADDR = 0X39,
     BNO055_SYS_ERR_ADDR = 0X3A,
@@ -164,39 +169,12 @@ typedef enum {
     MAG_RADIUS_MSB_ADDR = 0X6A
 } bno055_reg_t;
 
-
-
-
-/** A structure to represent offsets **/
-typedef struct {
-    int16_t accel_offset_x; /**< x acceleration offset */
-    int16_t accel_offset_y; /**< y acceleration offset */
-    int16_t accel_offset_z; /**< z acceleration offset */
-
-    int16_t mag_offset_x; /**< x magnetometer offset */
-    int16_t mag_offset_y; /**< y magnetometer offset */
-    int16_t mag_offset_z; /**< z magnetometer offset */
-
-    int16_t gyro_offset_x; /**< x gyroscrope offset */
-    int16_t gyro_offset_y; /**< y gyroscrope offset */
-    int16_t gyro_offset_z; /**< z gyroscrope offset */
-
-    int16_t accel_radius; /**< acceleration radius */
-
-    int16_t mag_radius; /**< magnetometer radius */
-} bno055_offsets_t;
-
-
-
-
 /** BNO055 power settings */
 typedef enum {
     POWER_MODE_NORMAL = 0X00,
     POWER_MODE_LOWPOWER = 0X01,
     POWER_MODE_SUSPEND = 0X02
 } bno055_powermode_t;
-
-
 
 
 /** Operation mode settings **/
@@ -215,7 +193,6 @@ typedef enum {
     OPERATION_MODE_NDOF_FMC_OFF = 0X0B,
     OPERATION_MODE_NDOF = 0X0C
 } bno055_opmode_t;
-
 
 
 /** Remap settings **/
@@ -241,3 +218,88 @@ typedef enum {
     REMAP_SIGN_P6 = 0x07,
     REMAP_SIGN_P7 = 0x05
 } bno055_axis_remap_sign_t;
+
+
+/** Vector Mappings **/
+typedef enum {
+    VECTOR_ACCELEROMETER = BNO055_ACCEL_DATA_X_LSB_ADDR,
+    VECTOR_MAGNETOMETER = BNO055_MAG_DATA_X_LSB_ADDR,
+    VECTOR_GYROSCOPE = BNO055_GYRO_DATA_X_LSB_ADDR,
+    VECTOR_EULER = BNO055_EULER_H_LSB_ADDR,
+    VECTOR_LINEARACCEL = BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR,
+    VECTOR_GRAVITY = BNO055_GRAVITY_DATA_X_LSB_ADDR
+} vector_type_t;
+
+
+/** A structure to represent offsets **/
+typedef struct {
+    int16_t accel_offset_x; /**< x acceleration offset */
+    int16_t accel_offset_y; /**< y acceleration offset */
+    int16_t accel_offset_z; /**< z acceleration offset */
+
+    int16_t mag_offset_x; /**< x magnetometer offset */
+    int16_t mag_offset_y; /**< y magnetometer offset */
+    int16_t mag_offset_z; /**< z magnetometer offset */
+
+    int16_t gyro_offset_x; /**< x gyroscrope offset */
+    int16_t gyro_offset_y; /**< y gyroscrope offset */
+    int16_t gyro_offset_z; /**< z gyroscrope offset */
+
+    int16_t accel_radius; /**< acceleration radius */
+
+    int16_t mag_radius; /**< magnetometer radius */
+} bno055_offsets_t;
+
+
+/** A structure to represent revisions **/
+typedef struct {
+    uint8_t accel_rev; /**< acceleration rev */
+    uint8_t mag_rev;   /**< magnetometer rev */
+    uint8_t gyro_rev;  /**< gyroscrope rev */
+    uint16_t sw_rev;   /**< SW rev */
+    uint8_t bl_rev;    /**< bootloader rev */
+} bno055_rev_info_t;
+
+Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
+    TwoWire* theWire = &Wire);
+
+bool begin(bno055_opmode_t mode = OPERATION_MODE_NDOF);
+void setMode(bno055_opmode_t mode);
+void setAxisRemap(bno055_axis_remap_config_t remapcode);
+void setAxisSign(bno055_axis_remap_sign_t remapsign);
+void getRevInfo(bno055_rev_info_t*);
+void setExtCrystalUse(boolean usextal);
+void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result,
+    uint8_t* system_error);
+void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel,
+    uint8_t* mag);
+
+imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
+imu::Quaternion getQuat();
+int8_t getTemp();
+
+/* Adafruit_Sensor implementation */
+bool getEvent(sensors_event_t*);
+bool getEvent(sensors_event_t*, adafruit_vector_type_t);
+void getSensor(sensor_t*);
+
+/* Functions to deal with raw calibration data */
+bool getSensorOffsets(uint8_t* calibData);
+bool getSensorOffsets(adafruit_bno055_offsets_t& offsets_type);
+void setSensorOffsets(const uint8_t* calibData);
+void setSensorOffsets(const adafruit_bno055_offsets_t& offsets_type);
+bool isFullyCalibrated();
+
+/* Power managments functions */
+void enterSuspendMode();
+void enterNormalMode();
+
+private:
+    byte read8(adafruit_bno055_reg_t);
+    bool readLen(adafruit_bno055_reg_t, byte* buffer, uint8_t len);
+    bool write8(adafruit_bno055_reg_t, byte value);
+
+    Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
+
+    int32_t _sensorID;
+    adafruit_bno055_opmode_t _mode;
