@@ -16,6 +16,15 @@
 #define NUM_BNO055_QUATERNION_REGISTERS (8)
 #define NUM_BNO055_EULER_REGISTERS (6)
 
+/** I2C configuration settings **/
+#define I2C_MASTER_SCL_IO           CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO           CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number */
+#define I2C_MASTER_FREQ_HZ          400000                     /*!< I2C master clock frequency */
+#define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TIMEOUT_MS       1000                       /*!< I2C master timeout */
+
 
 /** BNO055 Registers Adress **/
 typedef enum {
@@ -260,23 +269,37 @@ typedef struct {
     uint8_t bl_rev;    /**< bootloader rev */
 } bno055_rev_info_t;
 
-Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
-    TwoWire* theWire = &Wire);
+
 
 bool begin(bno055_opmode_t mode = OPERATION_MODE_NDOF);
-void setMode(bno055_opmode_t mode);
-void setAxisRemap(bno055_axis_remap_config_t remapcode);
-void setAxisSign(bno055_axis_remap_sign_t remapsign);
-void getRevInfo(bno055_rev_info_t*);
-void setExtCrystalUse(boolean usextal);
-void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result,
-    uint8_t* system_error);
-void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel,
-    uint8_t* mag);
 
-imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
-imu::Quaternion getQuat();
+
+
+void setMode(bno055_opmode_t mode);
+
+
+void setAxisRemap(bno055_axis_remap_config_t remapcode);
+
+
+void setAxisSign(bno055_axis_remap_sign_t remapsign);
+
+
+void getRevInfo(bno055_rev_info_t*);
+
+
+void setExtCrystalUse(boolean usextal);
+
+
+
 int8_t getTemp();
+
+
+void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
+
+
+void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
+
+
 
 /* Adafruit_Sensor implementation */
 bool getEvent(sensors_event_t*);
@@ -285,21 +308,32 @@ void getSensor(sensor_t*);
 
 /* Functions to deal with raw calibration data */
 bool getSensorOffsets(uint8_t* calibData);
-bool getSensorOffsets(adafruit_bno055_offsets_t& offsets_type);
+bool getSensorOffsets(bno055_offsets_t& offsets_type);
 void setSensorOffsets(const uint8_t* calibData);
-void setSensorOffsets(const adafruit_bno055_offsets_t& offsets_type);
+void setSensorOffsets(const no055_offsets_t& offsets_type);
 bool isFullyCalibrated();
 
 /* Power managments functions */
 void enterSuspendMode();
 void enterNormalMode();
 
-private:
-    byte read8(adafruit_bno055_reg_t);
-    bool readLen(adafruit_bno055_reg_t, byte* buffer, uint8_t len);
-    bool write8(adafruit_bno055_reg_t, byte value);
+byte read8(bno055_reg_t);
+bool readLen(bno055_reg_t, byte* buffer, uint8_t len);
+esp_err_t write8(bno055_reg_t, byte value);
+esp_err_t check_cmd_link_error(i2c_cmd_handle_t cmd_handle, esp_err_t err);
 
-    Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
+Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
 
-    int32_t _sensorID;
-    adafruit_bno055_opmode_t _mode;
+int32_t _sensorID;
+bno055_opmode_t _mode;
+
+
+
+
+
+Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
+    TwoWire* theWire = &Wire);
+
+
+imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
+imu::Quaternion getQuat();
