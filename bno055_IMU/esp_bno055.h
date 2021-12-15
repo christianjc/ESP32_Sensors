@@ -24,6 +24,7 @@
 #define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000                       /*!< I2C master timeout */
+#define I2C_CONNECTION_TO_TRY       1                          /*!< I2C number of times to try to send a message */
 
 
 /** BNO055 Registers Adress **/
@@ -319,8 +320,16 @@ void enterNormalMode();
 
 byte read8(bno055_reg_t);
 bool readLen(bno055_reg_t, byte* buffer, uint8_t len);
-esp_err_t write8(bno055_reg_t, byte value);
-esp_err_t check_cmd_link_error(i2c_cmd_handle_t cmd_handle, esp_err_t err);
+
+/**
+ * @brief This function writes one byte of data to the given register
+ *
+ * @param register This is the register address to write the command (data)
+ *
+ * @param data This is the data to write to the register
+*/
+esp_err_t write8(bno055_reg_t register, byte data);
+
 
 Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
 
