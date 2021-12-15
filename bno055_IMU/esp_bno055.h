@@ -319,7 +319,7 @@ void enterSuspendMode();
 void enterNormalMode();
 
 byte read8(bno055_reg_t);
-bool readLen(bno055_reg_t, byte* buffer, uint8_t len);
+esp_err_t readLen(bno055_reg_t, byte* buffer, uint8_t len);
 
 /**
  * @brief This function writes one byte of data to the given register
