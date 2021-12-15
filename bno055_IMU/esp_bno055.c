@@ -7,6 +7,7 @@
 static const char* TAG = "i2c-bno055-IMU";
 
 
+
 /**
  * @brief Wrietes one byte (8 bits) of data over I2C to a bno055 register
 */
@@ -71,6 +72,9 @@ esp_err_t write8(bno055_reg_t register, byte data) {
     return err;
 }
 
+/**
+ * @brief Read one byte from the I2C slave register
+*/
 uint8_t read8(bno055_reg_t register) {
     esp_err_t err = ESP_OK;
     uint8_t buffer[1];
@@ -81,10 +85,16 @@ uint8_t read8(bno055_reg_t register) {
     return (uint8_t)buffer[0];
 }
 
-esp_err_t readLen(bno055_reg_t, uint8_t* buffer, size_t len) {
-
+/**
+ * @brief Read bytes from the I2C slave register
+*/
+esp_err_t readLen(bno055_reg_t register, uint8_t* buffer, size_t len) {
+    return write_then_read(register, buffer, len);
 }
 
+/**
+ * @brief Is a helper function to read data from I2C slave register
+*/
 esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len) {
     esp_err_t err = ESP_OK;
 
@@ -177,3 +187,58 @@ esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len) {
     return err;
 }
 
+esp_err_t bno055_begin() {
+    /* Verify I2C slave bno055_id number */
+    uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
+    if (bno055_id != BNO055_ID) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        bno055_id = read8(BNO055_CHIP_ID_ADDR);
+        if (bno055_id != BNO055_ID) {
+            return ESP_FAIL;
+        }
+    }
+
+    /** Set configuratio mode to make changes **/
+    setMode(OPERATION_MODE_CONFIG);
+
+    /** Test Reset Trigger **/
+    write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+    /* Delay incrased to 30ms due to power issues https://tinyurl.com/y375z699 */
+    vTaskDelay(30 / portTICK_PERIOD_MS);
+    while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID) {
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+    delay(50);
+
+    /* Set to normal power mode */
+    write8(BNO055_PWR_MODE_ADDR, POWER_MODE_NORMAL);
+    delay(10);
+
+    write8(BNO055_PAGE_ID_ADDR, 0);
+
+    /* Set the output units */
+    /*
+    uint8_t unitsel = (0 << 7) | // Orientation = Android
+                      (0 << 4) | // Temperature = Celsius
+                      (0 << 2) | // Euler = Degrees
+                      (1 << 1) | // Gyro = Rads
+                      (0 << 0);  // Accelerometer = m/s^2
+    write8(BNO055_UNIT_SEL_ADDR, unitsel);
+    */
+
+    /* Configure axis mapping (see section 3.4) */
+    /*
+    write8(BNO055_AXIS_MAP_CONFIG_ADDR, REMAP_CONFIG_P2); // P0-P7, Default is P1
+    delay(10);
+    write8(BNO055_AXIS_MAP_SIGN_ADDR, REMAP_SIGN_P2); // P0-P7, Default is P1
+    delay(10);
+    */
+
+    write8(BNO055_SYS_TRIGGER_ADDR, 0x0);
+    delay(10);
+    /* Set the requested operating mode (see section 3.3) */
+    setMode(mode);
+    delay(20);
+
+    return true;
+}

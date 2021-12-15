@@ -270,9 +270,16 @@ typedef struct {
     uint8_t bl_rev;    /**< bootloader rev */
 } bno055_rev_info_t;
 
+typedef struct {
 
+}
 
-bool begin(bno055_opmode_t mode = OPERATION_MODE_NDOF);
+/*!
+ *  @brief  Initial set up
+ *  @return ESP_OK: if operatin was succesful
+ *          ESP_FAIL: if operation fail
+ */
+esp_err_t bno055_begin();
 
 
 
