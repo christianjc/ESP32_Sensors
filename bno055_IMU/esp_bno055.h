@@ -270,9 +270,15 @@ typedef struct {
     uint8_t bl_rev;    /**< bootloader rev */
 } bno055_rev_info_t;
 
-typedef struct {
+// typedef struct {
 
-}
+
+// } bno055_config_t;
+
+
+// /** This function initializes the desired sensor communication **/
+// esp_err_t bno055_init();
+
 
 /*!
  *  @brief  Initial set up
@@ -283,47 +289,49 @@ esp_err_t bno055_begin();
 
 
 
-void setMode(bno055_opmode_t mode);
+// void setMode(bno055_opmode_t mode);
 
 
-void setAxisRemap(bno055_axis_remap_config_t remapcode);
+// void setAxisRemap(bno055_axis_remap_config_t remapcode);
 
 
-void setAxisSign(bno055_axis_remap_sign_t remapsign);
+// void setAxisSign(bno055_axis_remap_sign_t remapsign);
 
 
-void getRevInfo(bno055_rev_info_t*);
+// void getRevInfo(bno055_rev_info_t*);
 
 
-void setExtCrystalUse(boolean usextal);
-
-
-
-int8_t getTemp();
-
-
-void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
-
-
-void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
+// void setExtCrystalUse(boolean usextal);
 
 
 
-/* Adafruit_Sensor implementation */
-bool getEvent(sensors_event_t*);
-bool getEvent(sensors_event_t*, adafruit_vector_type_t);
-void getSensor(sensor_t*);
+// int8_t getTemp();
 
-/* Functions to deal with raw calibration data */
-bool getSensorOffsets(uint8_t* calibData);
-bool getSensorOffsets(bno055_offsets_t& offsets_type);
-void setSensorOffsets(const uint8_t* calibData);
-void setSensorOffsets(const no055_offsets_t& offsets_type);
-bool isFullyCalibrated();
 
-/* Power managments functions */
-void enterSuspendMode();
-void enterNormalMode();
+// void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
+
+
+// void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
+
+
+
+// /* Adafruit_Sensor implementation */
+// bool getEvent(sensors_event_t*);
+// bool getEvent(sensors_event_t*, adafruit_vector_type_t);
+// void getSensor(sensor_t*);
+
+// /* Functions to deal with raw calibration data */
+// bool getSensorOffsets(uint8_t* calibData);
+// bool getSensorOffsets(bno055_offsets_t& offsets_type);
+// void setSensorOffsets(const uint8_t* calibData);
+// void setSensorOffsets(const no055_offsets_t& offsets_type);
+// bool isFullyCalibrated();
+
+// /* Power managments functions */
+// void enterSuspendMode();
+// void enterNormalMode();
+
+
 
 byte read8(bno055_reg_t);
 esp_err_t readLen(bno055_reg_t, byte* buffer, uint8_t len);
@@ -338,18 +346,21 @@ esp_err_t readLen(bno055_reg_t, byte* buffer, uint8_t len);
 esp_err_t write8(bno055_reg_t register, byte data);
 
 
-Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
-
-int32_t _sensorID;
-bno055_opmode_t _mode;
 
 
 
+// Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
+
+// int32_t _sensorID;
+// bno055_opmode_t _mode;
 
 
-Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
-    TwoWire* theWire = &Wire);
 
 
-imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
-imu::Quaternion getQuat();
+
+// Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
+//     TwoWire* theWire = &Wire);
+
+
+// imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
+// imu::Quaternion getQuat();

@@ -7,6 +7,26 @@
 static const char* TAG = "i2c-bno055-IMU";
 
 
+/**
+ * @brief i2c master initialization
+ */
+static esp_err_t i2c_master_init(void)
+{
+    int i2c_master_port = I2C_MASTER_NUM;
+
+    i2c_config_t config = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+
+    i2c_param_config(i2c_master_port, &config);
+
+    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+}
 
 /**
  * @brief Wrietes one byte (8 bits) of data over I2C to a bno055 register
@@ -198,23 +218,24 @@ esp_err_t bno055_begin() {
         }
     }
 
-    /** Set configuratio mode to make changes **/
-    setMode(OPERATION_MODE_CONFIG);
+    ESP_LOGW(TAG, "bno055 ID: %d", bno055_id);
+    // /** Set configuratio mode to make changes **/
+    // setMode(OPERATION_MODE_CONFIG);
 
-    /** Test Reset Trigger **/
-    write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
-    /* Delay incrased to 30ms due to power issues https://tinyurl.com/y375z699 */
-    vTaskDelay(30 / portTICK_PERIOD_MS);
-    while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID) {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-    delay(50);
+    // /** Test Reset Trigger **/
+    // write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+    // /* Delay incrased to 30ms due to power issues https://tinyurl.com/y375z699 */
+    // vTaskDelay(30 / portTICK_PERIOD_MS);
+    // while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID) {
+    //     vTaskDelay(10 / portTICK_PERIOD_MS);
+    // }
+    // vTaskDelay(50);
 
-    /* Set to normal power mode */
-    write8(BNO055_PWR_MODE_ADDR, POWER_MODE_NORMAL);
-    delay(10);
+    // /* Set to normal power mode */
+    // write8(BNO055_PWR_MODE_ADDR, POWER_MODE_NORMAL);
+    // vTaskDelay(10);
 
-    write8(BNO055_PAGE_ID_ADDR, 0);
+    // write8(BNO055_PAGE_ID_ADDR, 0);
 
     /* Set the output units */
     /*
@@ -234,11 +255,11 @@ esp_err_t bno055_begin() {
     delay(10);
     */
 
-    write8(BNO055_SYS_TRIGGER_ADDR, 0x0);
-    delay(10);
-    /* Set the requested operating mode (see section 3.3) */
-    setMode(mode);
-    delay(20);
+    // write8(BNO055_SYS_TRIGGER_ADDR, 0x0);
+    // vTaskDelay(10);
+    // /* Set the requested operating mode (see section 3.3) */
+    // setMode(mode);
+    // vTaskDelay(20);
 
     return true;
 }
