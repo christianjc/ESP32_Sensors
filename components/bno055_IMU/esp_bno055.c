@@ -1,10 +1,24 @@
 #include <stdio.h>
 #include "esp_log.h"
+
+
 #include "driver/i2c.h"
+
+
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+
+
 #include "esp_bno055.h"
 
+esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len);
+static esp_err_t i2c_master_init(void);
+
 static const char* TAG = "i2c-bno055-IMU";
+
+
 
 
 /**
@@ -25,13 +39,13 @@ static esp_err_t i2c_master_init(void)
 
     i2c_param_config(i2c_master_port, &config);
 
-    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+    return i2c_driver_install(i2c_master_port, config.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
 
 /**
  * @brief Wrietes one byte (8 bits) of data over I2C to a bno055 register
 */
-esp_err_t write8(bno055_reg_t register, byte data) {
+esp_err_t write8(bno055_reg_t reg, uint8_t data) {
     esp_err_t err = ESP_OK;
 
     i2c_cmd_handle_t cmd_handle = i2c_cmd_link_create();
@@ -54,7 +68,7 @@ esp_err_t write8(bno055_reg_t register, byte data) {
     }
 
     /** I2C Slave register to write to added to the command link **/
-    err = i2c_master_write_byte(cmd_handle, (uint8_t)register, I2C_MASTER_ACK);
+    err = i2c_master_write_byte(cmd_handle, (uint8_t)reg, I2C_MASTER_ACK);
     if (err != ESP_OK) {
         i2c_cmd_link_delete(cmd_handle);
         return err;
@@ -95,10 +109,10 @@ esp_err_t write8(bno055_reg_t register, byte data) {
 /**
  * @brief Read one byte from the I2C slave register
 */
-uint8_t read8(bno055_reg_t register) {
+int8_t read8(bno055_reg_t reg) {
     esp_err_t err = ESP_OK;
     uint8_t buffer[1];
-    err = write_then_read(register, buffer, 1);
+    err = write_then_read(reg, buffer, 1);
     if (err != ESP_OK) {
         return 0x00;
     }
@@ -108,14 +122,14 @@ uint8_t read8(bno055_reg_t register) {
 /**
  * @brief Read bytes from the I2C slave register
 */
-esp_err_t readLen(bno055_reg_t register, uint8_t* buffer, size_t len) {
-    return write_then_read(register, buffer, len);
+esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len) {
+    return write_then_read(reg, buffer, len);
 }
 
 /**
  * @brief Is a helper function to read data from I2C slave register
 */
-esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len) {
+esp_err_t write_then_read(bno055_reg_t reg, uint8_t* buffer, size_t len) {
     esp_err_t err = ESP_OK;
 
     i2c_cmd_handle_t cmd_handle = i2c_cmd_link_create();
@@ -138,7 +152,7 @@ esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len) {
     }
 
     /** I2C Slave register to read from added to the command link **/
-    err = i2c_master_write_byte(cmd_handle, (uint8_t)register, true);
+    err = i2c_master_write_byte(cmd_handle, (uint8_t)reg, true);
     if (err != ESP_OK) {
         i2c_cmd_link_delete(cmd_handle);
         return err;
@@ -209,11 +223,14 @@ esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len) {
 
 esp_err_t bno055_begin() {
     /* Verify I2C slave bno055_id number */
+    i2c_master_init();
+
     uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
     if (bno055_id != BNO055_ID) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         bno055_id = read8(BNO055_CHIP_ID_ADDR);
         if (bno055_id != BNO055_ID) {
+            ESP_LOGW(TAG, "bno055 ID: %d", bno055_id);
             return ESP_FAIL;
         }
     }
@@ -260,6 +277,7 @@ esp_err_t bno055_begin() {
     // /* Set the requested operating mode (see section 3.3) */
     // setMode(mode);
     // vTaskDelay(20);
+
 
     return true;
 }

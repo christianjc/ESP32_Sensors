@@ -1,9 +1,13 @@
 #include <stdio.h>
-#include "bno055_IMU/esp_bno055.h"
+#include "esp_bno055.h"
+
+#include "esp_test_comp.h"
 
 void app_main(void)
 {
-
     bno055_begin();
-    vTaskDelay(5000 / portTICK_PERIOD_MS)
+    // for (int i = 0; i < 20; i++)
+    // {
+    //     test_func();
+    // }
 }

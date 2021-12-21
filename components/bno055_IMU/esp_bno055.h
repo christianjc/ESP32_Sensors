@@ -3,6 +3,7 @@
 #pragma once
 #include <stdio.h>
 #include "esp_types.h"
+#include "esp_err.h"
 
 /** BNO055 Address Alternative **/
 #define BNO055_ADDRESS_A (0x28)
@@ -17,8 +18,8 @@
 #define NUM_BNO055_EULER_REGISTERS (6)
 
 /** I2C configuration settings **/
-#define I2C_MASTER_SCL_IO           CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_SCL_IO           (16)//CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO           (17)//CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
 #define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number */
 #define I2C_MASTER_FREQ_HZ          400000                     /*!< I2C master clock frequency */
 #define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
@@ -333,17 +334,18 @@ esp_err_t bno055_begin();
 
 
 
-byte read8(bno055_reg_t);
-esp_err_t readLen(bno055_reg_t, byte* buffer, uint8_t len);
+int8_t read8(bno055_reg_t);
+
+esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len);
 
 /**
- * @brief This function writes one byte of data to the given register
+ * @brief This function writes one int8_t of data to the given register
  *
  * @param register This is the register address to write the command (data)
  *
  * @param data This is the data to write to the register
 */
-esp_err_t write8(bno055_reg_t register, byte data);
+esp_err_t write8(bno055_reg_t, uint8_t data);
 
 
 
