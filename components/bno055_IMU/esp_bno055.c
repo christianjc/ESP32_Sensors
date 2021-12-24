@@ -54,20 +54,19 @@ esp_err_t bno055_begin() {
     }
     ESP_LOGD(TAG, "CHIP ID: %x", bno055_id);
 
+    /** Set to config mode **/
+    // setmode();
+
     /* Reset */
     write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+    vTaskDelay(80);
+    while (bno055_id != read8(BNO055_CHIP_ID_ADDR)) {
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
+    /* Set to normal power mode */
 
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    //printf("read buffer: %d\n", read_buff[0]);
-
-
-    // uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
-    // while (bno055_id != BNO055_ID) {
-    //     ESP_LOGW(TAG, "bno055 ID: %d", bno055_id);
-    //     bno055_id = read8(BNO055_CHIP_ID_ADDR);
-    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
     return err;
 }
 
@@ -110,9 +109,9 @@ uint8_t read8(bno055_reg_t reg) {
     uint8_t read_reg[1];
     read_reg[0] = (uint8_t)reg;
     ESP_LOGD(TAG, "buffer address to pass: %p \n", (void*)read_buffer);
-    ESP_LOGD(TAG, "buffer content %d \n", read_buffer[0]);
-    err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS_DEFAULT, read_reg, (size_t)1, read_buffer, (size_t)1,
-        (TickType_t)1000);
+    ESP_LOGD(TAG, "buffer content %x \n", read_buffer[0]);
+    err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
+        read_reg, (size_t)1, read_buffer, (size_t)1, (TickType_t)1000);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Error in i2c_master_write_read_device: %x", err);
         return 0x00;
@@ -126,64 +125,82 @@ uint8_t read8(bno055_reg_t reg) {
 */
 esp_err_t write8(bno055_reg_t reg, uint8_t data) {
     esp_err_t err = ESP_OK;
-
-    i2c_cmd_handle_t cmd_handle = i2c_cmd_link_create();
-    if (cmd_handle == NULL) {
-        return ESP_FAIL;
-    }
-
-    /** I2C start bit added to command link **/
-    err = i2c_master_start(cmd_handle);
+    uint8_t write_buffer[2];
+    write_buffer[0] = (uint8_t)reg;
+    write_buffer[1] = data;
+    err = i2c_master_write_to_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
+        write_buffer, (size_t)2, (TickType_t)1000);
     if (err != ESP_OK) {
-        i2c_cmd_link_delete(cmd_handle);
+        ESP_LOGE(TAG, "Error in i2c_master_write_to_device: %x", err);
         return err;
     }
-
-    /** I2C Slave address and write bit enable added to command link **/
-    err = i2c_master_write_byte(cmd_handle, (uint8_t)((BNO055_ADDRESS_DEFAULT << 1) | I2C_MASTER_WRITE), I2C_MASTER_ACK);
-    if (err != ESP_OK) {
-        i2c_cmd_link_delete(cmd_handle);
-        return err;
-    }
-
-    /** I2C Slave register to write to added to the command link **/
-    err = i2c_master_write_byte(cmd_handle, (uint8_t)reg, I2C_MASTER_ACK);
-    if (err != ESP_OK) {
-        i2c_cmd_link_delete(cmd_handle);
-        return err;
-    }
-
-    /** I2C Command to write to the slave register **/
-    err = i2c_master_write_byte(cmd_handle, (uint8_t)data, I2C_MASTER_ACK);
-    if (err != ESP_OK) {
-        i2c_cmd_link_delete(cmd_handle);
-        return err;
-    }
-
-    /** I2C stop signal added to the command link **/
-    err = i2c_master_stop(cmd_handle);
-    if (err != ESP_OK) {
-        i2c_cmd_link_delete(cmd_handle);
-        return err;
-    }
-
-    /** I2C Attempt to send the command link a set number of times **/
-    for (int attempt = 1; attempt <= I2C_CONNECTION_TO_TRY; attempt++) {
-        err = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd_handle, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-        if (err == ESP_OK) {
-            break;
-        }
-        else if ((err != ESP_OK) && (attempt < I2C_CONNECTION_TO_TRY)) {
-            continue;
-        }
-        else {
-            i2c_cmd_link_delete(cmd_handle);
-            return err;
-        }
-    }
-    i2c_cmd_link_delete(cmd_handle);
     return err;
 }
+
+
+// /**
+//  * @brief Wrietes one byte (8 bits) of data over I2C to a bno055 register
+// */
+// esp_err_t write8(bno055_reg_t reg, uint8_t data) {
+//     esp_err_t err = ESP_OK;
+
+//     i2c_cmd_handle_t cmd_handle = i2c_cmd_link_create();
+//     if (cmd_handle == NULL) {
+//         return ESP_FAIL;
+//     }
+
+//     /** I2C start bit added to command link **/
+//     err = i2c_master_start(cmd_handle);
+//     if (err != ESP_OK) {
+//         i2c_cmd_link_delete(cmd_handle);
+//         return err;
+//     }
+
+//     /** I2C Slave address and write bit enable added to command link **/
+//     err = i2c_master_write_byte(cmd_handle, (uint8_t)((BNO055_ADDRESS_DEFAULT << 1) | I2C_MASTER_WRITE), I2C_MASTER_ACK);
+//     if (err != ESP_OK) {
+//         i2c_cmd_link_delete(cmd_handle);
+//         return err;
+//     }
+
+//     /** I2C Slave register to write to added to the command link **/
+//     err = i2c_master_write_byte(cmd_handle, (uint8_t)reg, I2C_MASTER_ACK);
+//     if (err != ESP_OK) {
+//         i2c_cmd_link_delete(cmd_handle);
+//         return err;
+//     }
+
+//     /** I2C Command to write to the slave register **/
+//     err = i2c_master_write_byte(cmd_handle, (uint8_t)data, I2C_MASTER_ACK);
+//     if (err != ESP_OK) {
+//         i2c_cmd_link_delete(cmd_handle);
+//         return err;
+//     }
+
+//     /** I2C stop signal added to the command link **/
+//     err = i2c_master_stop(cmd_handle);
+//     if (err != ESP_OK) {
+//         i2c_cmd_link_delete(cmd_handle);
+//         return err;
+//     }
+
+//     /** I2C Attempt to send the command link a set number of times **/
+//     for (int attempt = 1; attempt <= I2C_CONNECTION_TO_TRY; attempt++) {
+//         err = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd_handle, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+//         if (err == ESP_OK) {
+//             break;
+//         }
+//         else if ((err != ESP_OK) && (attempt < I2C_CONNECTION_TO_TRY)) {
+//             continue;
+//         }
+//         else {
+//             i2c_cmd_link_delete(cmd_handle);
+//             return err;
+//         }
+//     }
+//     i2c_cmd_link_delete(cmd_handle);
+//     return err;
+// }
 
 
 

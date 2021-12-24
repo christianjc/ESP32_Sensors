@@ -10,7 +10,7 @@
 /** BNO055 Address Default **/
 #define BNO055_ADDRESS_DEFAULT (0x29)               // This requires the ADR pin to be high
 /** BNO055 Adress being used **/
-#define BNO055_ADRESS BNO055_ADDRESS_DEFAULT
+#define BNO055_ADDRESS BNO055_ADDRESS_DEFAULT
 /** BNO055 ID **/
 #define BNO055_ID (0xA0)
 
