@@ -6,9 +6,11 @@
 #include "esp_err.h"
 
 /** BNO055 Address Alternative **/
-#define BNO055_ADDRESS_A (0x28)
+#define BNO055_ADDRESS_A (0x28)                     // This requires the ADR pin to be low
 /** BNO055 Address Default **/
-#define BNO055_ADDRESS_DEFAULT (0x29)
+#define BNO055_ADDRESS_DEFAULT (0x29)               // This requires the ADR pin to be high
+/** BNO055 Adress being used **/
+#define BNO055_ADRESS BNO055_ADDRESS_DEFAULT
 /** BNO055 ID **/
 #define BNO055_ID (0xA0)
 
@@ -180,6 +182,7 @@ typedef enum {
     MAG_RADIUS_MSB_ADDR = 0X6A
 } bno055_reg_t;
 
+
 /** BNO055 power settings */
 typedef enum {
     POWER_MODE_NORMAL = 0X00,
@@ -271,14 +274,6 @@ typedef struct {
     uint8_t bl_rev;    /**< bootloader rev */
 } bno055_rev_info_t;
 
-// typedef struct {
-
-
-// } bno055_config_t;
-
-
-// /** This function initializes the desired sensor communication **/
-// esp_err_t bno055_init();
 
 
 /*!
@@ -289,6 +284,15 @@ typedef struct {
 esp_err_t bno055_begin();
 
 uint8_t read8(bno055_reg_t);
+
+/**
+ * @brief This function writes one byte of data to the given register
+ *
+ * @param register This is the register address to write the data to
+ *
+ * @param data This is the data to be written in the register
+*/
+esp_err_t write8(bno055_reg_t reg, uint8_t data);
 
 
 // void setMode(bno055_opmode_t mode);
@@ -340,14 +344,7 @@ uint8_t read8(bno055_reg_t);
 
 // esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len);
 
-// /**
-//  * @brief This function writes one int8_t of data to the given register
-//  *
-//  * @param register This is the register address to write the command (data)
-//  *
-//  * @param data This is the data to write to the register
-// */
-// esp_err_t write8(bno055_reg_t, uint8_t data);
+
 
 
 
