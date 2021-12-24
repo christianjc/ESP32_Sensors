@@ -18,14 +18,14 @@
 #define NUM_BNO055_EULER_REGISTERS (6)
 
 /** I2C configuration settings **/
-#define I2C_MASTER_SCL_IO           (16)//CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           (17)//CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
-#define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number */
+#define I2C_MASTER_SCL_IO           (19)//CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO           (18)//CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM              I2C_NUM_0                        /*!< I2C master i2c port number */
 #define I2C_MASTER_FREQ_HZ          400000                     /*!< I2C master clock frequency */
 #define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000                       /*!< I2C master timeout */
-#define I2C_CONNECTION_TO_TRY       1                          /*!< I2C number of times to try to send a message */
+#define I2C_CONNECTION_TO_TRY       10                          /*!< I2C number of times to try to send a message */
 
 
 /** BNO055 Registers Adress **/
@@ -288,6 +288,7 @@ typedef struct {
  */
 esp_err_t bno055_begin();
 
+uint8_t read8(bno055_reg_t);
 
 
 // void setMode(bno055_opmode_t mode);
@@ -334,18 +335,19 @@ esp_err_t bno055_begin();
 
 
 
-int8_t read8(bno055_reg_t);
 
-esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len);
 
-/**
- * @brief This function writes one int8_t of data to the given register
- *
- * @param register This is the register address to write the command (data)
- *
- * @param data This is the data to write to the register
-*/
-esp_err_t write8(bno055_reg_t, uint8_t data);
+
+// esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len);
+
+// /**
+//  * @brief This function writes one int8_t of data to the given register
+//  *
+//  * @param register This is the register address to write the command (data)
+//  *
+//  * @param data This is the data to write to the register
+// */
+// esp_err_t write8(bno055_reg_t, uint8_t data);
 
 
 
