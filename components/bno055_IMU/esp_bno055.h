@@ -283,16 +283,12 @@ typedef struct {
  */
 esp_err_t bno055_begin();
 
-uint8_t read8(bno055_reg_t);
 
-/**
- * @brief This function writes one byte of data to the given register
- *
- * @param register This is the register address to write the data to
- *
- * @param data This is the data to be written in the register
-*/
-esp_err_t write8(bno055_reg_t reg, uint8_t data);
+esp_err_t set_opmode(bno055_opmode_t op_mode);
+bno055_opmode_t get_opmode(void);
+
+esp_err_t set_powermode(bno055_powermode_t power_mode);
+bno055_powermode_t get_powermode(void);
 
 
 // void setMode(bno055_opmode_t mode);

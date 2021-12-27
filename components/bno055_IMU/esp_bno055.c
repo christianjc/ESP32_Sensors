@@ -14,17 +14,26 @@
 #include "esp_bno055.h"
 
 
-#define INITIAL_MODE_TOUT (36000)
+#define INITIAL_MASTER_TOUT         (36000)
+#define TIME_TO_WAIT_READ_WRITE     ((TickType_t)1000)
+#define TIME_TO_WAIT_OP_MODE        (30)
 
-
-
-
+static const char* TAG = "i2c-bno055-IMU";
 
 
 //esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len);
 static esp_err_t i2c_master_init(void);
+uint8_t read8(bno055_reg_t);
+/**
+ * @brief This function writes one byte of data to the given register
+ *
+ * @param register This is the register address to write the data to
+ *
+ * @param data This is the data to be written in the register
+*/
+esp_err_t write8(bno055_reg_t reg, uint8_t data);
 
-static const char* TAG = "i2c-bno055-IMU";
+
 
 esp_err_t bno055_begin() {
     /** Inintialize the master configuration **/
@@ -36,11 +45,11 @@ esp_err_t bno055_begin() {
     }
 
     /** Set the timeout for the communication bus **/
-    err = i2c_set_timeout((i2c_port_t)I2C_NUM_0, (int)INITIAL_MODE_TOUT);
+    err = i2c_set_timeout((i2c_port_t)I2C_NUM_0, (int)INITIAL_MASTER_TOUT);
     if (err != ESP_OK) {
         return err;
     }
-    ESP_LOGD(TAG, "This is the timeout value: %d", INITIAL_MODE_TOUT);
+    ESP_LOGD(TAG, "This is the timeout value: %d", INITIAL_MASTER_TOUT);
 
     /* Verify that we have the correct device */
     uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
@@ -69,8 +78,6 @@ esp_err_t bno055_begin() {
 
     return err;
 }
-
-
 
 
 
@@ -108,10 +115,8 @@ uint8_t read8(bno055_reg_t reg) {
     uint8_t read_buffer[1];
     uint8_t read_reg[1];
     read_reg[0] = (uint8_t)reg;
-    ESP_LOGD(TAG, "buffer address to pass: %p \n", (void*)read_buffer);
-    ESP_LOGD(TAG, "buffer content %x \n", read_buffer[0]);
     err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
-        read_reg, (size_t)1, read_buffer, (size_t)1, (TickType_t)1000);
+        read_reg, (size_t)1, read_buffer, (size_t)1, TIME_TO_WAIT_READ_WRITE);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Error in i2c_master_write_read_device: %x", err);
         return 0x00;
@@ -127,14 +132,43 @@ esp_err_t write8(bno055_reg_t reg, uint8_t data) {
     esp_err_t err = ESP_OK;
     uint8_t write_buffer[2];
     write_buffer[0] = (uint8_t)reg;
-    write_buffer[1] = data;
+    write_buffer[1] = (uint8_t)data;
     err = i2c_master_write_to_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
-        write_buffer, (size_t)2, (TickType_t)1000);
+        write_buffer, (size_t)2, TIME_TO_WAIT_READ_WRITE);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Error in i2c_master_write_to_device: %x", err);
         return err;
     }
     return err;
+}
+
+
+/**
+ * @brief Sets bno055 operation mode
+*/
+esp_err_t set_opmode(bno055_opmode_t op_mode) {
+    esp_err_t err = write8(BNO055_OPR_MODE_ADDR, op_mode);
+    //vTaskDelay(TIME_TO_WAIT_OP_MODE);
+    return err;
+}
+
+bno055_opmode_t get_opmode(void) {
+    return (bno055_opmode_t)read8(BNO055_OPR_MODE_ADDR);
+}
+
+esp_err_t set_powermode(bno055_powermode_t power_mode) {
+    esp_err_t err = ESP_OK;
+    err = set_opmode(OPERATION_MODE_CONFIG);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "set_opmode() error in set_powermode(): %x", err);
+        return err;
+    }
+    err = write8(BNO055_PWR_MODE_ADDR, power_mode);
+    return err;
+}
+
+bno055_powermode_t get_powermode() {
+    return (bno055_powermode_t)read8(BNO055_PWR_MODE_ADDR);
 }
 
 
