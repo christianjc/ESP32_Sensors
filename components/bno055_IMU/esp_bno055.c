@@ -41,8 +41,8 @@ uint8_t read8(bno055_reg_t);
  * @param data This is the data to be written in the register
 */
 esp_err_t write8(bno055_reg_t reg, uint8_t data);
-esp_err_t calibrate_sensor(void);
 esp_err_t set_sensor_offset(uint8_t* calib_data);
+
 
 
 esp_err_t bno055_begin() {
@@ -74,7 +74,7 @@ esp_err_t bno055_begin() {
     ESP_LOGD(TAG, "CHIP ID: %x", bno055_id);
 
     // Initialize NVS
-    esp_err_t err = nvs_flash_init();
+    err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         // NVS partition was truncated and needs to be erased
         // Retry nvs_flash_init
@@ -92,8 +92,8 @@ esp_err_t bno055_begin() {
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    /* Set to normal power mode */
-    err = set_powermode(POWER_MODE_NORMAL);
+    // /* Set to normal power mode */
+    // err = set_powermode(POWER_MODE_NORMAL);
 
     /** Calibrate sensor or use calibration profile **/
     err = calibrate_sensor_from_saved_profile();
@@ -101,6 +101,9 @@ esp_err_t bno055_begin() {
         if (err == ESP_ERR_NVS_NOT_FOUND) {
             err = calibrate_sensor();
             if (err != ESP_OK) return err;
+        }
+        else {
+            return err;
         }
     }
 
@@ -111,7 +114,7 @@ esp_err_t bno055_begin() {
  * @brief   Resets the bno055 chip
 */
 esp_err_t bno055_reset(void) {
-    err = set_opmode(OPERATION_MODE_CONFIG);
+    esp_err_t err = set_opmode(OPERATION_MODE_CONFIG);
     if (err != ESP_OK) {
         return err;
     }
@@ -123,13 +126,12 @@ esp_err_t calibrate_sensor(void) {
 
     printf("SENSOR: Please start calibration\n");
 
-    err = set_opmode(OPERATION_MODE_IMUPLUS);
+    esp_err_t err = set_opmode(OPERATION_MODE_IMUPLUS);
     if (err != ESP_OK) return  err;
     // wait untill calibration is completed
     uint8_t counter = 0;
     while (!isFullyCalibrated()) {
         if (counter > 100) {
-            nvs_close(my_handle);
             return ESP_FAIL;
         }
         printf("sensor is not calibrated: counter %d\n", counter);
@@ -143,81 +145,27 @@ esp_err_t calibrate_sensor(void) {
     if (err != ESP_OK) return err;
 
     err = save_calib_profile_to_nvs(calib_data);
-    if (err != ESP_OK) return err;
+    return err;
 
-
-
-
-
-    // /** open flash memory **/
-    // // Get profile from nvs
-    // uint8_t calib_data[22];
-    // err = get_calib_profile_from_nvs(calib_data);
-    // if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
-
-    // switch (err) {
-    // case ESP_OK:
-    //     // if we do have calibration profile
-    //         // set opmode to configuration mode
-    //     err = set_opmode(OPERATION_MODE_CONFIG);
-    //     if (err != ESP_OK) return err;
-    //     // write the offset data to the corresponding registers
-    //     err = set_sensor_offset(calib_data);
-    //     if (err != ESP_OK) return err;
-    //     // set operation mode to fusion mode
-    //     err = set_opmode(OPERATION_MODE_IMUPLUS);
-    //     if (err != ESP_OK) return err;
-    //     printf("SENSOR was callybrated from profile:");
-    //     break;
-    // case ESP_ERR_NVS_NOT_FOUND:
-    //     // if we dont have calibration profile
-    //         // output a signal to let user know that calibration is needed
-    //     printf("SENSOR: There is not calibration data. Please calibrate sensor\n");
-    //     err = set_opmode(OPERATION_MODE_IMUPLUS);
-    //     if (err != ESP_OK) return  err;
-    //     // wait untill calibration is completed
-    //     uint8_t counter = 0;
-    //     while (!isFullyCalibrated()) {
-    //         if (counter > 20) {
-    //             nvs_close(my_handle);
-    //             return ESP_FAIL;
-    //         }
-    //         printf("sensor is not calibrated: counter %d\n", counter);
-    //         vTaskDelay(5000 / portTICK_PERIOD_MS);
-    //         counter++;
-    //     }
-    //     printf("SENSOR: sensor is now calibrated \n");
-    //     printf("Saving calibrated profile to non-volatile memory...\n");
-    //     err = get_sensor_offsets(calib_data);
-    //     if (err != ESP_OK) return err;
-
-    //     // save calibrated profile to flash memory
-    //     err = nvs_set_blob(my_handle, "calib_data", calib_data, size);
-    //     if (err != ESP_OK) return err;
-    //     // Commit written value.
-    //     // After setting any values, nvs_commit() must be called to ensure changes are written
-    //     // to flash storage. Implementations may write to storage at other times,
-    //     // but this is not guaranteed.
-    //     printf("Committing updates in NVS ... \n");
-    //     err = nvs_commit(my_handle);
-    //     printf((err != ESP_OK) ? "Failed!\n" : "Calibration data was succesfully saved!!\n");
-    //     break;
-    // default:
-    //     printf("Error (%s) reading!\n", esp_err_to_name(err));
-    // }
-
-    // // Close
-    // nvs_close(my_handle);
-
-    // return ESP_OK;
-    // // check if we have calibration profile
-
-    // // flash stdout 
-    // // close flash memory
 }
 
 esp_err_t calibrate_sensor_from_saved_profile(void) {
-
+    uint8_t calib_data[NUM_BNO055_OFFSET_REGISTERS];
+    memset(calib_data, 0, 22);
+    esp_err_t err = get_calib_profile_from_nvs(calib_data);
+    switch (err) {
+    case ESP_OK:
+        err = set_sensor_offset(calib_data);
+        printf("check if isFullyCalibrated true after updatind sensor ofsets.....\nisFullyCalibrated:  ");
+        printf((isFullyCalibrated()) ? "True!\n" : "False\n");
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf("No profile saved yet!\n");
+        break;
+    default:
+        printf("Error reading calibration profile\n");
+    }
+    return err;
 }
 
 /**
@@ -230,36 +178,39 @@ esp_err_t calibrate_sensor_from_saved_profile(void) {
  *          ESP_ERR_INVALID_ARG
 */
 esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data) {
-    // parameter check
-    uint8_t size_needed[NUM_BNO055_OFFSET_REGISTERS];
-    if (sizeof(calib_data) != sizeof(size_needed)) return ESP_ERR_INVALID_ARG;
+    // // parameter check
+    // uint8_t size_needed[NUM_BNO055_OFFSET_REGISTERS];
+    // if (sizeof(calib_data) != sizeof(size_needed)) {
+    //     printf("here is the error**********\n ");
+    //     printf("calib_data size: %d  needed: %d\n", sizeof(calib_data), sizeof(size_needed));
+    //     //return ESP_ERR_INVALID_ARG;
+    // }
+
 
     // Open
     nvs_handle_t my_handle;
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
     if (err != ESP_OK) return err;
 
     // Read memory space for blob if it exists
-    size_t size = sizeof(calib_data);
+    size_t size = (size_t)(NUM_BNO055_OFFSET_REGISTERS);
     memset(calib_data, 0, NUM_BNO055_OFFSET_REGISTERS);
     err = nvs_get_blob(my_handle, "calib_data", calib_data, &size);
 
     nvs_close(my_handle);
+    printf("Error (%s) reading!\n", esp_err_to_name(err));
     return err;
 }
 
 esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {
-    // parameter check
-    uint8_t size_needed[NUM_BNO055_OFFSET_REGISTERS];
-    if (sizeof(calib_data) != sizeof(size_needed)) return ESP_ERR_INVALID_ARG;
 
     // Open
     nvs_handle_t my_handle;
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
     if (err != ESP_OK) return err;
 
     // Read memory space for blob if it exists
-    size_t size = sizeof(calib_data);
+    size_t size = (size_t)(NUM_BNO055_OFFSET_REGISTERS);
     memset(calib_data, 0, NUM_BNO055_OFFSET_REGISTERS);
     err = nvs_set_blob(my_handle, "calib_data", calib_data, size);
     if (err != ESP_OK) {
@@ -276,7 +227,7 @@ esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {
 esp_err_t print_calib_profile_from_nvs(void) {
     esp_err_t err = ESP_OK;
     uint8_t calibData[NUM_BNO055_OFFSET_REGISTERS];
-    menset(calibData, 0, NUM_BNO055_OFFSET_REGISTERS);
+    memset(calibData, 0, NUM_BNO055_OFFSET_REGISTERS);
     err = get_calib_profile_from_nvs(calibData);
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
     switch (err) {
@@ -305,7 +256,7 @@ esp_err_t print_calib_profile_from_nvs(void) {
         printf("Error reading nvs storage\n");
     }
 
-
+    return err;
 }
 
 /**
@@ -596,6 +547,8 @@ esp_err_t get_sensor_offsets(uint8_t* calibData) {
  */
 esp_err_t set_sensor_offset(uint8_t* calib_data) {
     esp_err_t err = ESP_OK;
+    bno055_opmode_t opmode = get_opmode();
+    err = set_opmode(OPERATION_MODE_CONFIG);
     uint8_t write_buffer[23];
     write_buffer[0] = (uint8_t)ACCEL_OFFSET_X_LSB_ADDR;
     for (int i = 1; i < 23; i++) {
@@ -608,6 +561,7 @@ esp_err_t set_sensor_offset(uint8_t* calib_data) {
         ESP_LOGE(TAG, "Error in i2c_master_write_to_device: %x", err);
         return err;
     }
+    err = set_opmode(opmode);
     return err;
 }
 

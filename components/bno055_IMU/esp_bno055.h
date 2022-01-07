@@ -399,6 +399,15 @@ esp_err_t print_calib_profile_from_nvs(void);
 */
 esp_err_t bno055_reset(void);
 
+
+esp_err_t calibrate_sensor_from_saved_profile(void);
+
+esp_err_t calibrate_sensor(void);
+
+esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
+
+esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data);
+
 // void setMode(bno055_opmode_t mode);
 
 
