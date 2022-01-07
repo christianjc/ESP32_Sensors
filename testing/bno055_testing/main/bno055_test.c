@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include <string.h>
 #include "esp_log.h"
-
+#include "esp_types.h"
 #include "driver/i2c.h"
 
 #include "freertos/FreeRTOS.h"
@@ -9,8 +10,6 @@
 #include "freertos/queue.h"
 
 #include "esp_bno055.h"
-
-#include "esp_test_comp.h"
 
 static const char *TAG = "BNO055 testing";
 
@@ -26,6 +25,16 @@ esp_err_t write8(bno055_reg_t reg, uint8_t data);
 esp_err_t read8_and_write8_test(void);
 esp_err_t get_set_opmod_test(void);
 esp_err_t get_set_powermode_test(void);
+esp_err_t get_set_axis_remap_test(void);
+esp_err_t get_set_axis_sign_test(void);
+esp_err_t unit_config_test(void);
+esp_err_t get_calibration_state_test(void);
+esp_err_t isFullyCalibrated_test(void);
+esp_err_t get_sensor_offsets_test(void);
+esp_err_t get_sensor_offsets_struct_test(void);
+esp_err_t get_temp_test(void);
+esp_err_t get_vector_test(void);
+esp_err_t get_quat_test(void);
 
 void app_main(void)
 {
@@ -55,6 +64,59 @@ void app_main(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not set or get powermode: %x", err);
+    }
+
+    err = get_set_axis_remap_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get or set axis remap %x", err);
+    }
+
+    err = get_set_axis_sign_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get or set axis sign %x", err);
+    }
+    err = unit_config_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not configure units %x", err);
+    }
+    err = get_calibration_state_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not read calibration data: %x", err);
+    }
+    err = isFullyCalibrated_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not check if fully calibrated: %x", err);
+    }
+    err = get_sensor_offsets_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get sensor offset: %x", err);
+    }
+    err = get_sensor_offsets_struct_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get sensor offset struct: %x", err);
+    }
+    err = get_temp_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get temperature: %x", err);
+    }
+    err = get_vector_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get vector data from sensor: %x", err);
+    }
+
+    err = get_quat_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not get quaternion data from sensor: %x", err);
     }
 }
 
@@ -115,4 +177,129 @@ esp_err_t get_set_powermode_test(void)
         ESP_LOGE(TAG, "Could not get power mode, error: %x", err);
     }
     return err;
+}
+
+esp_err_t get_set_axis_remap_test(void)
+{
+    esp_err_t err = ESP_OK;
+
+    bno055_axis_remap_config_t axis_config = get_axis_remap();
+    ESP_LOGD(TAG, "Get axis configuration: %x", axis_config);
+    ESP_LOGD(TAG, "Axis configuration to be set to: %x", REMAP_CONFIG_P3);
+    err = set_axis_remap(REMAP_CONFIG_P3); // REMAP_CONFIG_P3 = 0x21
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not set axis remap: %x", err);
+        return err;
+    }
+    axis_config = get_axis_remap();
+    ESP_LOGD(TAG, "Get axis configuration after setting it: %x", axis_config);
+    if (axis_config != REMAP_CONFIG_P3)
+    {
+        ESP_LOGE(TAG, "Error setting axis configuration: %x", err);
+        return err;
+    }
+    err = set_axis_remap(REMAP_CONFIG_P1); // REMAP_CONFIG_P1 = 0x24 Default
+    return err;
+}
+
+esp_err_t get_set_axis_sign_test(void)
+{
+    esp_err_t err = ESP_OK;
+
+    bno055_axis_remap_sign_t axis_sign = get_axis_sign();
+    ESP_LOGD(TAG, "Get axis sign: %x", axis_sign);
+    ESP_LOGD(TAG, "Axis sign to be set to: %x", REMAP_SIGN_P3);
+    err = set_axis_sign(REMAP_SIGN_P3); // REMAP_SIGN_P3 = 0x02
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not set axis sign: %x", err);
+        return err;
+    }
+    axis_sign = get_axis_sign();
+    ESP_LOGD(TAG, "Get axis sign after setting it: %x", axis_sign);
+    if (axis_sign != REMAP_SIGN_P3)
+    {
+        ESP_LOGE(TAG, "Error setting axis sign: %x", err);
+        return err;
+    }
+    err = set_axis_sign(REMAP_SIGN_P1); // REMAP_SIGN_P1 = 0x00 Default
+    return err;
+}
+
+esp_err_t unit_config_test(void)
+{
+    esp_err_t err = ESP_OK;
+    bno055_units_config_t units = {
+        .accel = UNITS_MS2,
+        .angular_rate = UNITS_RPS,
+        .euler_angel = UNITS_RADIANS,
+        .temperature = UNITS_FAHRENHEIT,
+    };
+    err = unit_config(&units);
+    return err;
+}
+
+esp_err_t get_calibration_state_test(void)
+{
+    uint8_t system, gyro, accel, mag;
+    get_calibration_state(&system, &gyro, &accel, &mag);
+    ESP_LOGD(TAG, "System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
+    // More test needed here
+
+    return ESP_OK;
+}
+
+esp_err_t isFullyCalibrated_test(void)
+{
+    // test is fully calibrated function
+    if (!isFullyCalibrated())
+    {
+        ESP_LOGD(TAG, "Sensor is NOT fully callibrated");
+        return ESP_OK;
+    }
+    ESP_LOGD(TAG, "Sensor is fully callibrated");
+    return ESP_OK;
+}
+
+esp_err_t get_sensor_offsets_test(void)
+{
+    //Test get_sensor_offset function
+    uint8_t calibData[22];
+    memset(calibData, 0, 22);
+    esp_err_t err = get_sensor_offsets(calibData);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    for (int i = 0; i < 22; i++)
+    {
+        printf("value: %d  of index: %d\n", calibData[i], i);
+    }
+    return ESP_OK;
+}
+
+esp_err_t get_sensor_offsets_struct_test(void)
+{
+    //Test get_sensor_offsets_struct function
+    return ESP_OK;
+}
+
+esp_err_t get_temp_test(void)
+{
+    // Test get_temp() function
+    return ESP_OK;
+}
+
+esp_err_t get_vector_test(void)
+{
+    // test getting vector data from bno055
+    return ESP_OK;
+}
+
+esp_err_t get_quat_test(void)
+{
+    // test get_quat() function
+    return ESP_OK;
 }

@@ -242,8 +242,35 @@ typedef enum {
     VECTOR_EULER = BNO055_EULER_H_LSB_ADDR,
     VECTOR_LINEARACCEL = BNO055_LINEAR_ACCEL_DATA_X_LSB_ADDR,
     VECTOR_GRAVITY = BNO055_GRAVITY_DATA_X_LSB_ADDR
-} vector_type_t;
+} bno055_vector_type_t;
 
+typedef enum {
+    UNITS_MS2 = 0x00,   /**< Meters per second squared */
+    UNITS_MG = 0x01,    /**< Mass times gravity */
+} bno055_accel_unit_t;
+
+typedef enum {
+    UNITS_DPS = 0x00,   /**< Degrees per second */
+    UNITS_RPS = 0x02,   /**< Radians per second */
+} bno055_angular_rate_unit_t;
+
+typedef enum {
+    UNITS_DEGREES = 0x00,   /**< Degrees */
+    UNITS_RADIANS = 0x04,   /**< Rdians */
+} bno055_euler_unit_t;
+
+typedef enum {
+    UNITS_CELSIUS = 0x00,       /**< Degrees Celsius */
+    UNITS_FAHRENHEIT = 0x10,    /**< Degrees Fahrenheit */
+} bno055_temp_unit_t;
+
+/** A structure to configure the units **/
+typedef struct {
+    bno055_accel_unit_t accel;
+    bno055_angular_rate_unit_t angular_rate;
+    bno055_euler_unit_t euler_angel;
+    bno055_temp_unit_t temperature;
+} bno055_units_config_t;
 
 /** A structure to represent offsets **/
 typedef struct {
@@ -290,6 +317,87 @@ bno055_opmode_t get_opmode(void);
 esp_err_t set_powermode(bno055_powermode_t power_mode);
 bno055_powermode_t get_powermode(void);
 
+esp_err_t set_axis_remap(bno055_axis_remap_config_t config);
+bno055_axis_remap_config_t get_axis_remap(void);
+
+esp_err_t set_axis_sign(bno055_axis_remap_sign_t config);
+bno055_axis_remap_sign_t get_axis_sign(void);
+
+esp_err_t unit_config(bno055_units_config_t* config);
+
+/**
+ *  @brief  Gets current calibration state.  Each value should be a uint8_t
+ *          pointer and it will be set to 0 if not calibrated and 3 if
+ *          fully calibrated.
+ *          See section 34.3.54
+ *  @param  sys
+ *          Current system calibration status, depends on status of all sensors,
+ * read-only
+ *  @param  gyro
+ *          Current calibration status of Gyroscope, read-only
+ *  @param  accel
+ *          Current calibration status of Accelerometer, read-only
+ *  @param  mag
+ *          Current calibration status of Magnetometer, read-only
+ */
+void get_calibration_state(uint8_t* sys, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
+
+/**
+ *  @brief  Checks of all cal status values are set to 3 (fully calibrated)
+ *  @return status of calibration
+ */
+bool isFullyCalibrated(void);
+
+/**
+ *  @brief  Reads the sensor's offset registers into a byte array
+ *  @param  calibData
+ *          Calibration offset (buffer size should be 22)
+ *  @return true if read is successful
+ */
+esp_err_t get_sensor_offsets(uint8_t* calibData);
+
+/**
+ *  @brief  Reads the sensor's offset registers into an offset struct to work with raw data
+ *  @param  offsets type of offsets
+ *  @return true if read is successful
+ */
+esp_err_t get_sensor_offsets_struct(bno055_offsets_t* offsets);
+
+/**
+ *  @brief  Gets the temperature in degrees celsius
+ *  @return temperature in degrees celsius
+ */
+int8_t get_temp(void);
+
+/**
+ *  @brief   Gets a vector reading from the specified source
+ *  @param   vector_type
+ *           possible vector type values
+ *           [VECTOR_ACCELEROMETER
+ *            VECTOR_MAGNETOMETER
+ *            VECTOR_GYROSCOPE
+ *            VECTOR_EULER
+ *            VECTOR_LINEARACCEL
+ *            VECTOR_GRAVITY]
+ *  @param xyz pointer to a array of size 3
+ *  @return  vector from specified source
+ */
+esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz);
+
+/**
+ *  @brief  Gets a quaternion reading from the specified source
+ *  @param quat pointer to an array of int16 of size 8
+ *  @return quaternion reading
+ */
+esp_err_t get_quat(int16_t* quat);
+
+
+esp_err_t print_calib_profile_from_nvs(void);
+
+/**
+ * @brief   Resets the bno055 chip
+*/
+esp_err_t bno055_reset(void);
 
 // void setMode(bno055_opmode_t mode);
 
