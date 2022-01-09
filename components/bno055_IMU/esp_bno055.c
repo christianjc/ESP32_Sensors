@@ -2,50 +2,154 @@
 
 #include <stdio.h>
 #include <string.h>
+
 #include "esp_log.h"
-
 #include "errno.h"
-
 #include "esp_system.h"
+
 #include "nvs_flash.h"
 #include "nvs.h"
-
 #include "driver/i2c.h"
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+//#include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
-
+//#include "freertos/queue.h"
 
 #include "esp_bno055.h"
 
-
-#define INITIAL_MASTER_TOUT         (36000)     // This is number of clock cycles from the main clock. Here is 80,000,000 Hz. Bno055 needs at leas 500us.
+/** The BNO055 needs at least 500us for clock stretching.
+ *  The esp32 default clock is 80 MHz.
+ *  We have the following calculation:
+ *      Convert 500us to Hz:            1/(0.000,500) = 2000Hz
+ *      Clock cycels to stretch clock:  (80 MHz) / (2000 Hz) = 40,000
+ *      INITIAL_MASTER_TOUT = 40,000 clock cycles
+ */
+#define INITIAL_MASTER_TOUT         (40000)     
 #define TIME_TO_WAIT_READ_WRITE     ((TickType_t)1000)
-#define TIME_TO_WAIT_OP_MODE        (30)
+#define TIME_TO_WAIT_OP_MODE        (30)                    
+#define STORAGE_NAMESPACE "storage"             // Partion name to store sensor offset profile
 
-#define STORAGE_NAMESPACE "storage"
-
+ /** Static constants **/
 static const char* TAG = "i2c-bno055-IMU";
 
 
-//esp_err_t write_then_read(bno055_reg_t register, uint8_t* buffer, size_t len);
+/** Static functions declaration **/
 static esp_err_t i2c_master_init(void);
-uint8_t read8(bno055_reg_t);
+static uint8_t read8(bno055_reg_t reg);
+static esp_err_t write8(bno055_reg_t reg, uint8_t data);
+static esp_err_t print_calib_profile(uint8_t* calib_data);
+
+/** Static functions definitions **/
 /**
- * @brief This function writes one byte of data to the given register
- *
- * @param register This is the register address to write the data to
- *
- * @param data This is the data to be written in the register
+ * @brief   Initializes the i2c master communication with
+ *          the BNO055 sensor.
+ * @return  ESP_OK
+ *          ESP_FAIL
+ */
+static esp_err_t i2c_master_init(void)
+{
+    esp_err_t err = ESP_OK;
+
+    err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    i2c_config_t config = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+
+    err = i2c_param_config(I2C_NUM_0, &config);
+
+    return err;
+}
+
+/**
+ * @brief Reads one byte from the BNO055 (i2c slave) register
+ * @param reg   Register address to read from.
+ * @return  Returns one byte of data read from the given register.
 */
-esp_err_t write8(bno055_reg_t reg, uint8_t data);
-esp_err_t set_sensor_offset(uint8_t* calib_data);
+static uint8_t read8(bno055_reg_t reg) {
+    esp_err_t err = ESP_OK;
+    uint8_t read_buffer[1];
+    uint8_t read_reg[1];
+    read_reg[0] = (uint8_t)reg;
+    err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
+        read_reg, (size_t)1, read_buffer, (size_t)1, TIME_TO_WAIT_READ_WRITE);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error in i2c_master_write_read_device: %x", err);
+        return 0x00;
+    }
+    return (uint8_t)read_buffer[0];
+}
+
+/**
+ * @brief   Writes one byte of data to the BNO055 given register
+ * @param   register: Register address to write the data to.
+ * @param   data: Data to be written in the register.
+ * @return  ESP_OK
+ *          ESP_FAIL
+*/
+static esp_err_t write8(bno055_reg_t reg, uint8_t data) {
+    esp_err_t err = ESP_OK;
+    uint8_t write_buffer[2];
+    write_buffer[0] = (uint8_t)reg;
+    write_buffer[1] = (uint8_t)data;
+    err = i2c_master_write_to_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
+        write_buffer, (size_t)2, TIME_TO_WAIT_READ_WRITE);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error in i2c_master_write_to_device: %x", err);
+        return err;
+    }
+    return err;
+}
+
+/**
+ * @brief   Helper function to print sensor calibration offset values.
+ * @param   calib_data: Array of uint8_t of size 22. Contains the offset
+ *                      valus for the BNO055 sensors. Odd elements correspond
+ *                      to MSB and even elements to LSB of one value.
+ * @return  ESP_OK
+ *          ESP_FAIL
+*/
+static esp_err_t print_calib_profile(uint8_t* calib_data) {
+    if (calib_data != NULL) {
+        printf("\n            **** Accelerometer Offsets ****\n");
+        printf("Accel offset X: %d [m/s^2]\n", ((calib_data[1] << 8) | (calib_data[0])));
+        printf("Accel offset Y: %d [m/s^2]\n", ((calib_data[3] << 8) | (calib_data[2])));
+        printf("Accel offset Z: %d [m/s^2]\n", ((calib_data[5] << 8) | (calib_data[4])));
+        printf("\n            **** Magnetometer Offsets ****\n");
+        printf("Mag offset X: %d\n", ((calib_data[7] << 8) | (calib_data[6])));
+        printf("Mag offset Y: %d\n", ((calib_data[9] << 8) | (calib_data[8])));
+        printf("Mag offset Z: %d\n", ((calib_data[11] << 8) | (calib_data[10])));
+        printf("\n            **** Gyroscope Offsets ****\n");
+        printf("Gyr offset X: %d [Rps]\n", ((calib_data[13] << 8) | (calib_data[12])));
+        printf("Gyr offset Y: %d [Rps]\n", ((calib_data[15] << 8) | (calib_data[14])));
+        printf("Gyr offset Z: %d [Rps]\n", ((calib_data[17] << 8) | (calib_data[16])));
+        printf("\n            **** Accelerometer Radius ****\n");
+        printf("Accel radius: %d [Radians]\n", ((calib_data[19] << 8) | (calib_data[18])));
+        printf("\n            **** Magnetometer Radius ****\n");
+        printf("Mag radius: %d [Radians]\n", ((calib_data[21] << 8) | (calib_data[20])));
+    }
+    else {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
 
 
-
-esp_err_t bno055_begin() {
+/**
+ * @brief
+ * @return  ESP_OK
+ *          ESP_FAIL
+*/
+esp_err_t bno055_begin(void) {
     /** Inintialize the master configuration **/
     esp_err_t err = i2c_master_init();
     if (err != ESP_OK) {
@@ -86,11 +190,6 @@ esp_err_t bno055_begin() {
     err = bno055_reset();
     if (err != ESP_OK) return err;
 
-    /** Wait for the chip to restart **/
-    vTaskDelay(80);
-    while (bno055_id != read8(BNO055_CHIP_ID_ADDR)) {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
 
     // /* Set to normal power mode */
     // err = set_powermode(POWER_MODE_NORMAL);
@@ -114,19 +213,27 @@ esp_err_t bno055_begin() {
  * @brief   Resets the bno055 chip
 */
 esp_err_t bno055_reset(void) {
+    uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
     esp_err_t err = set_opmode(OPERATION_MODE_CONFIG);
-    if (err != ESP_OK) {
-        return err;
+    if (err != ESP_OK) return err;
+
+    err = write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+    if (err != ESP_OK) return err;
+    /** Wait for the chip to restart **/
+    vTaskDelay(80);
+    while (bno055_id != read8(BNO055_CHIP_ID_ADDR)) {
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
-    return write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+    return err;
 }
 
 
 esp_err_t calibrate_sensor(void) {
 
     printf("SENSOR: Please start calibration\n");
-
-    esp_err_t err = set_opmode(OPERATION_MODE_IMUPLUS);
+    esp_err_t err = bno055_reset();
+    if (err != ESP_OK) return  err;
+    err = set_opmode(OPERATION_MODE_IMUPLUS);
     if (err != ESP_OK) return  err;
     // wait untill calibration is completed
     uint8_t counter = 0;
@@ -135,6 +242,9 @@ esp_err_t calibrate_sensor(void) {
             return ESP_FAIL;
         }
         printf("sensor is not calibrated: counter %d\n", counter);
+        uint8_t system, gyro, accel, mag;
+        get_calibration_state(&system, &gyro, &accel, &mag);
+        ESP_LOGD(TAG, "System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         counter++;
     }
@@ -211,7 +321,6 @@ esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {
 
     // Read memory space for blob if it exists
     size_t size = (size_t)(NUM_BNO055_OFFSET_REGISTERS);
-    memset(calib_data, 0, NUM_BNO055_OFFSET_REGISTERS);
     err = nvs_set_blob(my_handle, "calib_data", calib_data, size);
     if (err != ESP_OK) {
         nvs_close(my_handle);
@@ -224,100 +333,7 @@ esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {
 }
 
 
-esp_err_t print_calib_profile_from_nvs(void) {
-    esp_err_t err = ESP_OK;
-    uint8_t calibData[NUM_BNO055_OFFSET_REGISTERS];
-    memset(calibData, 0, NUM_BNO055_OFFSET_REGISTERS);
-    err = get_calib_profile_from_nvs(calibData);
-    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
-    switch (err) {
-    case ESP_OK:
-        printf("**** Accelerometer Offsets ****\n");
-        printf("Accel offset X: %d\n", ((calibData[1] << 8) | (calibData[0])));
-        printf("Accel offset Y: %d\n", ((calibData[3] << 8) | (calibData[2])));
-        printf("Accel offset Z: %d\n", ((calibData[5] << 8) | (calibData[4])));
-        printf("**** Magnetometer Offsets ****\n");
-        printf("Mag offset X: %d\n", ((calibData[7] << 8) | (calibData[6])));
-        printf("Mag offset Y: %d\n", ((calibData[9] << 8) | (calibData[8])));
-        printf("Mag offset Z: %d\n", ((calibData[11] << 8) | (calibData[10])));
-        printf("**** Gyroscope Offsets ****\n");
-        printf("Gyr offset X: %d\n", ((calibData[13] << 8) | (calibData[12])));
-        printf("Gyr offset Y: %d\n", ((calibData[15] << 8) | (calibData[14])));
-        printf("Gyr offset Z: %d\n", ((calibData[17] << 8) | (calibData[16])));
-        printf("**** Accelerometer Radius ****\n");
-        printf("Accel radius: %d\n", ((calibData[19] << 8) | (calibData[18])));
-        printf("**** Magnetometer Radius ****\n");
-        printf("Mag radius: %d\n", ((calibData[21] << 8) | (calibData[20])));
-        break;
-    case ESP_ERR_NVS_NOT_FOUND:
-        printf("Profile not initialized yet!!\n");
-        break;
-    default:
-        printf("Error reading nvs storage\n");
-    }
 
-    return err;
-}
-
-/**
- * @brief i2c communication for master initialization and configuration
- */
-static esp_err_t i2c_master_init(void)
-{
-    esp_err_t err = ESP_OK;
-
-    err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    i2c_config_t config = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_MASTER_SDA_IO,
-        .scl_io_num = I2C_MASTER_SCL_IO,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,
-    };
-
-    err = i2c_param_config(I2C_NUM_0, &config);
-
-    return err;
-}
-
-/**
- * @brief Read one byte from the I2C slave register
-*/
-uint8_t read8(bno055_reg_t reg) {
-    esp_err_t err = ESP_OK;
-    uint8_t read_buffer[1];
-    uint8_t read_reg[1];
-    read_reg[0] = (uint8_t)reg;
-    err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
-        read_reg, (size_t)1, read_buffer, (size_t)1, TIME_TO_WAIT_READ_WRITE);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error in i2c_master_write_read_device: %x", err);
-        return 0x00;
-    }
-    return (uint8_t)read_buffer[0];
-}
-
-/**
- * @brief Wrietes one byte (8 bits) of data over I2C to a bno055 register
-*/
-esp_err_t write8(bno055_reg_t reg, uint8_t data) {
-    esp_err_t err = ESP_OK;
-    uint8_t write_buffer[2];
-    write_buffer[0] = (uint8_t)reg;
-    write_buffer[1] = (uint8_t)data;
-    err = i2c_master_write_to_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
-        write_buffer, (size_t)2, TIME_TO_WAIT_READ_WRITE);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error in i2c_master_write_to_device: %x", err);
-        return err;
-    }
-    return err;
-}
 
 /**
  * @brief Sets bno055 operation mode
@@ -515,32 +531,32 @@ bool isFullyCalibrated() {
 
 /**
  *  @brief  Reads the sensor's offset registers into a byte array
- *  @param  calibData
+ *  @param  calib_data
  *          Calibration offset uint8_t (buffer size should be 22)
  *  @return ESP_OK
  *          ESP_FAIL
  */
-esp_err_t get_sensor_offsets(uint8_t* calibData) {
+esp_err_t get_sensor_offsets(uint8_t* calib_data) {
     esp_err_t err = ESP_OK;
-    //if (isFullyCalibrated()) {                    // TODO: uncoment this line
-    bno055_opmode_t opmode = get_opmode();
-    uint8_t read_reg[1];
-    read_reg[0] = (uint8_t)ACCEL_OFFSET_X_LSB_ADDR;
-    err = set_opmode(OPERATION_MODE_CONFIG);
-    if (err != ESP_OK) return err;
-    err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
-        read_reg, (size_t)1, calibData, NUM_BNO055_OFFSET_REGISTERS, TIME_TO_WAIT_READ_WRITE);
-    //readLen(ACCEL_OFFSET_X_LSB_ADDR, calibData, NUM_BNO055_OFFSET_REGISTERS);
+    if (isFullyCalibrated()) {                    // TODO: uncoment this line
+        bno055_opmode_t opmode = get_opmode();
+        uint8_t read_reg[1];
+        read_reg[0] = (uint8_t)ACCEL_OFFSET_X_LSB_ADDR;
+        err = set_opmode(OPERATION_MODE_CONFIG);
+        if (err != ESP_OK) return err;
+        err = i2c_master_write_read_device(I2C_NUM_0, (uint8_t)BNO055_ADDRESS,
+            read_reg, (size_t)1, calib_data, NUM_BNO055_OFFSET_REGISTERS, TIME_TO_WAIT_READ_WRITE);
+        //readLen(ACCEL_OFFSET_X_LSB_ADDR, calib_data, NUM_BNO055_OFFSET_REGISTERS);
 
-    err = set_opmode(opmode);
-    return err;
-    //}
+        err = set_opmode(opmode);
+        return err;
+    }
     return ESP_FAIL;
 }
 
 /**
  *  @brief  Writes the sensor's offset registers from a byte array
- *  @param  calibData
+ *  @param  calib_data
  *          Calibration offset uint8_t (buffer size should be 22)
  *  @return ESP_OK
  *          ESP_FAIL
@@ -672,7 +688,7 @@ esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz) {
     y = ((int16_t)buffer[2]) | (((int16_t)buffer[3]) << 8);
     z = ((int16_t)buffer[4]) | (((int16_t)buffer[5]) << 8);
 
-    /*!
+    /**
      * Convert the value to an appropriate range (section 3.6.4)
      * and assign the value to the Vector type
      */
@@ -766,3 +782,103 @@ esp_err_t get_quat(int16_t* quat) {
 }
 
 
+
+
+/*** Printig helper functions ***/
+
+esp_err_t print_calib_profile_from_nvs(void) {
+    esp_err_t err = ESP_OK;
+    uint8_t calib_data[NUM_BNO055_OFFSET_REGISTERS];
+    memset(calib_data, 0, NUM_BNO055_OFFSET_REGISTERS);
+    err = get_calib_profile_from_nvs(calib_data);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
+    switch (err) {
+    case ESP_OK:
+        printf("\nPRINTING PROFILE FROM NVS...\n");
+        print_calib_profile(calib_data);
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf("Profile not initialized yet!!\n");
+        break;
+    default:
+        printf("Error reading nvs storage\n");
+    }
+
+    return err;
+}
+
+esp_err_t print_calib_profile_from_sensor(void) {
+    esp_err_t err = ESP_OK;
+    uint8_t calib_data[NUM_BNO055_OFFSET_REGISTERS];
+    memset(calib_data, 0, NUM_BNO055_OFFSET_REGISTERS);
+    err = get_sensor_offsets(calib_data);
+    if (err != ESP_OK) return err;
+    printf("\nPRINTING PROFILE FROM SENSOR REGISTERS...\n");
+    print_calib_profile(calib_data);
+    return err;
+}
+
+
+
+esp_err_t print_vector(bno055_vector_type_t vector_type, int16_t* xyz) {
+
+    switch (vector_type) {
+    case VECTOR_MAGNETOMETER:
+        /* 1uT = 16 LSB */
+        printf("\n            **** Magnetometer Vector ****\n");
+        printf("Mag X: %d [Micro Tesla]\n", xyz[0]);
+        printf("Mag Y: %d [Micro Tesla]\n", xyz[1]);
+        printf("Mag Z: %d [Micro Tesla]\n", xyz[2]);
+        break;
+    case VECTOR_GYROSCOPE:
+        /* 1dps = 16 LSB */
+        /* 1rps = 900 LSB */
+        printf("\n            **** Gyroscope Vector ****\n");
+        printf("Gyro X: %d [dps]\n", xyz[0]);
+        printf("Gyro Y: %d [dps]\n", xyz[1]);
+        printf("Gyro Z: %d [dps]\n", xyz[2]);
+        break;
+    case VECTOR_EULER:
+        /* 1 degree = 16 LSB */
+        /* 1 radian = 900 LSB */
+        printf("\n            **** Euler Vector ****\n");
+        printf("Euler Heading -Z: %d [degrees]\n", xyz[0]);
+        printf("Euler Roll    -Y: %d [degrees]\n", xyz[1]);
+        printf("Euler Pitch   -X: %d [degrees]\n", xyz[2]);
+        break;
+    case VECTOR_ACCELEROMETER:
+        /* 1m/s^2 = 100 LSB */
+        /* 1mg = 1 LSB */
+        printf("\n            **** Accelerometer Vector ****\n");
+        printf("Accelerometer X: %d [m/s^2]\n", xyz[0]);
+        printf("Accelerometer Y: %d [m/s^2]\n", xyz[1]);
+        printf("Accelerometer Z: %d [m/s^2]\n", xyz[2]);
+        break;
+    case VECTOR_LINEARACCEL:
+        /* 1m/s^2 = 100 LSB */
+        /* 1mg = 1 LSB */
+        printf("\n            **** Linear Acceleration Vector ****\n");
+        printf("Acceleration X: %d [m/s^2]\n", xyz[0]);
+        printf("Acceleration Y: %d [m/s^2]\n", xyz[1]);
+        printf("Acceleration Z: %d [m/s^2]\n", xyz[2]);
+        break;
+    case VECTOR_GRAVITY:
+        /* 1m/s^2 = 100 LSB */
+        /* 1mg = 1 LSB */
+        printf("\n            **** Gravity Vector ****\n");
+        printf("Grativy X: %d [m/s^2]\n", xyz[0]);
+        printf("Gravity Y: %d [m/s^2]\n", xyz[1]);
+        printf("Gravity Z: %d [m/s^2]\n", xyz[2]);
+        break;
+    }
+    return ESP_OK;
+}
+
+esp_err_t print_quat(int16_t* xyz) {
+    printf("\n            **** Quaternion ****\n");
+    printf("W: %d\n", xyz[0]);
+    printf("X: %d\n", xyz[0]);
+    printf("Y: %d\n", xyz[1]);
+    printf("Z: %d\n", xyz[2]);
+    return ESP_OK;
+}

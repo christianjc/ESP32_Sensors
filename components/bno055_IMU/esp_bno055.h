@@ -393,6 +393,7 @@ esp_err_t get_quat(int16_t* quat);
 
 
 esp_err_t print_calib_profile_from_nvs(void);
+esp_err_t print_calib_profile_from_sensor(void);
 
 /**
  * @brief   Resets the bno055 chip
@@ -407,6 +408,11 @@ esp_err_t calibrate_sensor(void);
 esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
 
 esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data);
+
+esp_err_t print_vector(bno055_vector_type_t vector_type, int16_t* xyz);
+esp_err_t print_quat(int16_t* xyz);
+
+esp_err_t set_sensor_offset(uint8_t* calib_data);
 
 // void setMode(bno055_opmode_t mode);
 

@@ -13,16 +13,6 @@
 
 static const char *TAG = "BNO055 testing";
 
-uint8_t read8(bno055_reg_t);
-/**
- * @brief This function writes one byte of data to the given register
- *
- * @param register This is the register address to write the data to
- *
- * @param data This is the data to be written in the register
-*/
-esp_err_t write8(bno055_reg_t reg, uint8_t data);
-esp_err_t read8_and_write8_test(void);
 esp_err_t get_set_opmod_test(void);
 esp_err_t get_set_powermode_test(void);
 esp_err_t get_set_axis_remap_test(void);
@@ -30,11 +20,12 @@ esp_err_t get_set_axis_sign_test(void);
 esp_err_t unit_config_test(void);
 esp_err_t get_calibration_state_test(void);
 esp_err_t isFullyCalibrated_test(void);
-esp_err_t get_sensor_offsets_test(void);
+esp_err_t print_sensor_offsets_test(void);
 esp_err_t get_sensor_offsets_struct_test(void);
 esp_err_t get_temp_test(void);
 esp_err_t get_vector_test(void);
 esp_err_t get_quat_test(void);
+esp_err_t calibrate_sensor_test(void);
 
 void app_main(void)
 {
@@ -49,11 +40,6 @@ void app_main(void)
 
     ESP_LOGD(TAG, "power mode: %x", pwr_mode);
 
-    err = read8_and_write8_test();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Could not read or write: %x", err);
-    }
     err = get_set_opmod_test();
     if (err != ESP_OK)
     {
@@ -92,7 +78,7 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "Could not check if fully calibrated: %x", err);
     }
-    err = get_sensor_offsets_test();
+    err = print_sensor_offsets_test();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not get sensor offset: %x", err);
@@ -107,6 +93,13 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "Could not get temperature: %x", err);
     }
+
+    err = calibrate_sensor_test();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not calibrate sensor: %x", err);
+    }
+
     err = get_vector_test();
     if (err != ESP_OK)
     {
@@ -118,25 +111,6 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "Could not get quaternion data from sensor: %x", err);
     }
-}
-
-esp_err_t read8_and_write8_test(void)
-{
-    esp_err_t err = ESP_OK;
-    /** Testing write8() function: write to UNIT_SEL register(0x3B) **/
-    uint8_t unit_sel_val = read8(BNO055_UNIT_SEL_ADDR);
-    ESP_LOGD(TAG, "unit_sel_val in register: %x", unit_sel_val);
-    err = write8(BNO055_UNIT_SEL_ADDR, 0x81);
-    if ((err != ESP_OK) || (unit_sel_val == read8(BNO055_UNIT_SEL_ADDR)))
-    {
-        ESP_LOGE(TAG, "Could not write a byte to bno055: %x", err);
-    }
-
-    if (read8(BNO055_UNIT_SEL_ADDR) != 0x81)
-    {
-        ESP_LOGE(TAG, "Could not write value to register - wrote: 0x81  but got: %x", unit_sel_val);
-    }
-    return err;
 }
 
 esp_err_t get_set_opmod_test(void)
@@ -262,44 +236,98 @@ esp_err_t isFullyCalibrated_test(void)
     return ESP_OK;
 }
 
-esp_err_t get_sensor_offsets_test(void)
+esp_err_t print_sensor_offsets_test(void)
 {
     //Test get_sensor_offset function
-    uint8_t calibData[22];
-    memset(calibData, 0, 22);
-    esp_err_t err = get_sensor_offsets(calibData);
-    if (err != ESP_OK)
-    {
-        return err;
-    }
-
-    for (int i = 0; i < 22; i++)
-    {
-        printf("value: %d  of index: %d\n", calibData[i], i);
-    }
+    print_calib_profile_from_sensor();
     return ESP_OK;
 }
 
 esp_err_t get_sensor_offsets_struct_test(void)
 {
     //Test get_sensor_offsets_struct function
-    return ESP_OK;
+    bno055_offsets_t *offset_struct = (bno055_offsets_t *)calloc(1, sizeof(bno055_offsets_t));
+    esp_err_t err = get_sensor_offsets_struct(offset_struct);
+    return err;
 }
 
 esp_err_t get_temp_test(void)
 {
     // Test get_temp() function
+    printf("temperature: %d [F]\n", get_temp());
     return ESP_OK;
+}
+
+esp_err_t calibrate_sensor_test(void)
+{
+    esp_err_t err = calibrate_sensor();
+    if (err != ESP_OK)
+    {
+        printf("Calibration error\n");
+        return err;
+    }
+
+    if (isFullyCalibrated())
+    {
+        print_calib_profile_from_sensor();
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        print_calib_profile_from_nvs();
+        get_calibration_state_test();
+    }
+    else
+    {
+        printf("sensor is not fully calibrated\n");
+        get_calibration_state_test();
+    }
+
+    return err;
 }
 
 esp_err_t get_vector_test(void)
 {
+    /**
+ *  @brief   Gets a vector reading from the specified source
+ *  @param   vector_type
+ *           possible vector type values
+ *           [VECTOR_ACCELEROMETER
+ *            VECTOR_MAGNETOMETER
+ *            VECTOR_GYROSCOPE
+ *            VECTOR_EULER
+ *            VECTOR_LINEARACCEL
+ *            VECTOR_GRAVITY]
+ *  @return  vector from specified source
+ *
+ *  @p TODO: figure out the convertion units when units are changed
+ */
     // test getting vector data from bno055
-    return ESP_OK;
+    int16_t xyz[3];
+
+    esp_err_t err = get_vector(VECTOR_EULER, xyz);
+    for (int i = 0; i < 2000; i++)
+    {
+        err = get_vector(VECTOR_EULER, xyz);
+        if (err != ESP_OK)
+        {
+            printf("could not get euler vector: (%s)", esp_err_to_name(err));
+            return err;
+        }
+        print_vector(VECTOR_EULER, xyz);
+        err = get_vector(VECTOR_GYROSCOPE, xyz);
+        if (err != ESP_OK)
+        {
+            printf("could not get gyro vector: (%s)", esp_err_to_name(err));
+            return err;
+        }
+        print_vector(VECTOR_GYROSCOPE, xyz);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+
+    return err;
 }
 
 esp_err_t get_quat_test(void)
 {
     // test get_quat() function
+    //esp_err_t err = get_quat(int16_t * quat);
     return ESP_OK;
 }
