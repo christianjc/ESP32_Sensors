@@ -256,15 +256,19 @@ esp_err_t calibrate_sensor(void) {
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         counter++;
     }
-    ESP_LOGD(TAG, "[calibrate_sensor]: sensor is now calibrated ");
+    ESP_LOGD(TAG, "[calibrate_sensor]: sensor is now calibrated!! ");
     ESP_LOGD(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
+
+    /** Save calibrated profile to non-volitile storage **/
     uint8_t calib_data[22];
     err = get_sensor_offsets(calib_data);
     if (err != ESP_OK) return err;
 
     err = save_calib_profile_to_nvs(calib_data);
-    return err;
+    if (err != ESP_OK) return err;
 
+    ESP_LOGD(TAG, "[calibrate_sensor]: Calibrated profile was saved to nvs succesfully!");
+    return err;
 }
 
 esp_err_t calibrate_sensor_from_saved_profile(void) {
