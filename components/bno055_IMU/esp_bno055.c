@@ -145,12 +145,15 @@ static esp_err_t print_calib_profile(uint8_t* calib_data) {
 
 
 /**
- * @brief
+ * @brief   Initiallizes i2c communication between esp32 and bno055 sensor
+ *          and calibrates the sensor fron data profile store in nvs or
+ *          starts new calibration if there is no profile stored.
+ *       <<!As of right now the operation mode is set to IMU in the bno055 sensor.!>>
  * @return  ESP_OK
  *          ESP_FAIL
 */
 esp_err_t bno055_begin(void) {
-    /** Inintialize the master configuration **/
+    /** Inintialize the i2c master configuration **/
     esp_err_t err = i2c_master_init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "i2c Master init error: %d", err);
@@ -189,10 +192,6 @@ esp_err_t bno055_begin(void) {
 
     err = bno055_reset();
     if (err != ESP_OK) return err;
-
-
-    // /* Set to normal power mode */
-    // err = set_powermode(POWER_MODE_NORMAL);
 
     /** Calibrate sensor or use calibration profile **/
     err = calibrate_sensor_from_saved_profile();
