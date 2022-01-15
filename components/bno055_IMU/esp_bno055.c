@@ -33,7 +33,6 @@
  /** Static constants **/
 static const char* TAG = "i2c-bno055-IMU";
 
-
 /** Static functions declaration **/
 static esp_err_t i2c_master_init(void);
 static uint8_t read8(bno055_reg_t reg);
@@ -143,7 +142,7 @@ static esp_err_t print_calib_profile(uint8_t* calib_data) {
     return ESP_OK;
 }
 
-
+/** Function definitions **/
 /**
  * @brief   Initiallizes i2c communication between esp32 and bno055 sensor
  *          and calibrates the sensor fron data profile store in nvs or
@@ -209,7 +208,8 @@ esp_err_t bno055_begin(void) {
 }
 
 /**
- * @brief   Resets the bno055 chip
+ * @brief   Resets the bno055 sensor and waits until communication is
+ *          resummed.
 */
 esp_err_t bno055_reset(void) {
     uint8_t bno055_id = read8(BNO055_CHIP_ID_ADDR);
@@ -218,6 +218,7 @@ esp_err_t bno055_reset(void) {
 
     err = write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
     if (err != ESP_OK) return err;
+
     /** Wait for the chip to restart **/
     vTaskDelay(80);
     while (bno055_id != read8(BNO055_CHIP_ID_ADDR)) {
@@ -226,29 +227,37 @@ esp_err_t bno055_reset(void) {
     return err;
 }
 
-
+/**
+ * @brief   Calibrate the necessary sensors. The scurrent setting
+ *          is to calibrate for operation mode: IMU. This can be change
+ *          later to include more operation modes.
+*/
 esp_err_t calibrate_sensor(void) {
 
-    printf("SENSOR: Please start calibration\n");
+    ESP_LOGD(TAG, "[calibrate_sensor]: Please start calibration");
+    /** Reset sensor to beging calibration **/
     esp_err_t err = bno055_reset();
     if (err != ESP_OK) return  err;
+
+    /** Change operation mode to IMU to start calibration **/
     err = set_opmode(OPERATION_MODE_IMUPLUS);
     if (err != ESP_OK) return  err;
-    // wait untill calibration is completed
+
+    /** Wait until calibration is completed or return an error **/
     uint8_t counter = 0;
     while (!isFullyCalibrated()) {
         if (counter > 100) {
             return ESP_FAIL;
         }
-        printf("sensor is not calibrated: counter %d\n", counter);
+        ESP_LOGD(TAG, "[calibrate_sensor]: is not calibrated: counter %d", counter);
         uint8_t system, gyro, accel, mag;
         get_calibration_state(&system, &gyro, &accel, &mag);
-        ESP_LOGD(TAG, "System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
+        ESP_LOGD(TAG, "[calibrate_sensor]: System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         counter++;
     }
-    printf("SENSOR: sensor is now calibrated \n");
-    printf("Saving calibrated profile to non-volatile memory...\n");
+    ESP_LOGD(TAG, "[calibrate_sensor]: sensor is now calibrated ");
+    ESP_LOGD(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
     uint8_t calib_data[22];
     err = get_sensor_offsets(calib_data);
     if (err != ESP_OK) return err;
