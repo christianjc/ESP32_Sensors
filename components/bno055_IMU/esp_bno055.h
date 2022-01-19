@@ -303,184 +303,324 @@ typedef struct {
 
 
 
-/*!
- *  @brief  Initial set up
- *  @return ESP_OK: if operatin was succesful
- *          ESP_FAIL: if operation fail
- */
+/**
+ * @brief   Initiallizes i2c communication between esp32 and bno055 sensor
+ *          and calibrates the sensor fron data profile store in nvs or
+ *          starts new calibration if there is no profile stored.
+ *       <<!As of right now the operation mode is set to IMU in the bno055 sensor.!>>
+ * @return  ESP_OK
+ *          ESP_FAIL
+*/
 esp_err_t bno055_begin();
 
+/**
+ * @brief   Resets the bno055 sensor and waits until communication is
+ *          resummed.
+ *
+ * @return  ESP_OK - successfully reseted sensor.
+ *          ESP_FAIL - sensor could not be reseted.
+*/
+esp_err_t bno055_reset(void);
 
+/**
+ * @brief   Calibrate the necessary sensors. The scurrent setting
+ *          is to calibrate for operation mode: IMU. This can be change
+ *          later to include more operation modes. nvs_flash_init() must be
+ *          called before this function can be used.
+ *
+ * @return  ESP_OK - sensor was successfully calibrated.
+ *          ESP_FAIL - sensor could not be calibrated.
+*/
+esp_err_t calibrate_sensor(void);
+
+/**
+ * @brief   Calibrates the bno055 internal sensors with a previously
+ *          calibration data saved in the non-volatile storage of the esp32.
+ *          nvs_flash_init() must be called before this function can be used.
+ *
+ * @return  ESP_OK - calibration was succesful
+ *          ESP_ERR_NVS_NOT_FOUND - There was not a saved profile in non-volitile storage (nvs)
+ *          ESP_FAIL
+*/
+esp_err_t calibrate_sensor_from_saved_profile(void);
+
+/**
+ * @brief   Gets the calibration profile from the non-volatile storate (nvs).
+ *          nvs_flash_init() must be called before this function can
+ *          be used
+ *
+ * @param calib_data    Pointer to a uint8_t array of size 22
+ *
+ * @return  ESP_OK
+ *          ESP_FAIL
+ *          ESP_ERR_INVALID_ARG
+*/
+esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
+
+/**
+ * @brief   Saves calibrated profile data to the non-volitile storage (nvs)
+ *          of the esp32. nvs_flash_init() must be called before this function can
+ *          be used.
+ *
+ * @param calib_data    A pointer to an array of uint_8 with 22 elements.
+ *
+ * @return  ESP_OK - calibration profile was successfully saved.
+ *          ESP_FAIL -  failed to save profile to nvs.
+*/
+esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data);
+
+/**
+ * @brief   Sets bno055 to one of the following operation mode:
+ *              OPERATION_MODE_CONFIG
+ *              OPERATION_MODE_ACCONLY
+ *              OPERATION_MODE_MAGONLY
+ *              OPERATION_MODE_GYRONLY
+ *              OPERATION_MODE_ACCMAG
+ *              OPERATION_MODE_ACCGYRO
+ *              OPERATION_MODE_MAGGYRO
+ *              OPERATION_MODE_AMG
+ *              OPERATION_MODE_IMUPLUS
+ *              OPERATION_MODE_COMPASS
+ *              OPERATION_MODE_M4G
+ *              OPERATION_MODE_NDOF_FMC_OFF
+ *              OPERATION_MODE_NDOF
+ *
+ * @param op_mode   mask config of type bno055_opmode_t
+ *
+ * @return  ESP_OK - operation set succesfully
+ *          ESP_FAIL - operation could not be set
+*/
 esp_err_t set_opmode(bno055_opmode_t op_mode);
+
+/**
+ * @brief   Gets the current bno055 operation mode.
+ *          TODO: maybe change function return type to esp_err_t
+ *
+ * @return  mask config of type bno055_opmode_t
+*/
 bno055_opmode_t get_opmode(void);
 
+/**
+ * @brief   Sets bno055 to one of the following power modes:
+ *          POWER_MODE_NORMAL = 0X00,
+ *          POWER_MODE_LOWPOWER = 0X01,
+ *          POWER_MODE_SUSPEND = 0X02
+ *
+ * @param power_mode    one of the power modes above of type bno055_powermode_t
+ *
+ * @return  ESP_OK - power mode was set succesfully.
+ *          ESP_FAIL - power mode could not be set.
+ *
+*/
 esp_err_t set_powermode(bno055_powermode_t power_mode);
+
+/**
+ * @brief   Gets current bno055 power mode.
+ *
+ * @return returns power mode of type bno055_powermode_t
+*/
 bno055_powermode_t get_powermode(void);
 
+/**
+ * @brief   Sets bno055 axis remap configuration.
+ *          REMAP_CONFIG_P0 = 0x21,
+ *          REMAP_CONFIG_P1 = 0x24, // default
+ *          REMAP_CONFIG_P2 = 0x24,
+ *          REMAP_CONFIG_P3 = 0x21,
+ *          REMAP_CONFIG_P4 = 0x24,
+ *          REMAP_CONFIG_P5 = 0x21,
+ *          REMAP_CONFIG_P6 = 0x21,
+ *          REMAP_CONFIG_P7 = 0x24
+ *
+ * @param config axis config mask of type bno055_axis_remap_config_t
+ *
+ * @return  ESP_OK - axis remap was successfully set.
+ *          ESP_FAIL - axis remap could not be set.
+*/
 esp_err_t set_axis_remap(bno055_axis_remap_config_t config);
+
+/**
+ * @brief   Gets bno055 axis remap configuration.
+ *          TODO: change return type to esp_err_t
+ *
+ * @return axis config of type bno055_axis_remap_config_t.
+*/
 bno055_axis_remap_config_t get_axis_remap(void);
 
+/**
+ * @brief   Sets bno055 axis sign config.
+ *          REMAP_SIGN_P0 = 0x04,
+ *          REMAP_SIGN_P1 = 0x00, // default
+ *          REMAP_SIGN_P2 = 0x06,
+ *          REMAP_SIGN_P3 = 0x02,
+ *          REMAP_SIGN_P4 = 0x03,
+ *          REMAP_SIGN_P5 = 0x01,
+ *          REMAP_SIGN_P6 = 0x07,
+ *          REMAP_SIGN_P7 = 0x05
+ *
+ * @param config axis sign config mask of type bno055_axis_remap_sign_t.
+ *
+ * @return  ESP_OK - axis sign was set succesfully.
+ *          ESP_FAIL - axis sign could not be set.
+*/
 esp_err_t set_axis_sign(bno055_axis_remap_sign_t config);
+
+/**
+ * @brief   Gets bno055 axis sign.
+ *          TODO: change return type to esp_err_t.
+ *
+ * @return axis sign mask of type bno055_axis_remap_sign_t.
+*/
 bno055_axis_remap_sign_t get_axis_sign(void);
 
+/**
+ * @brief   Configure IMU units
+ *
+ * @param config pointer of type bno055_units_config_t*
+ *
+* @return   ESP_OK - unit config was successfully set.
+ *          ESP_FAIL - unit config could not be set.
+*/
 esp_err_t unit_config(bno055_units_config_t* config);
 
 /**
  *  @brief  Gets current calibration state.  Each value should be a uint8_t
  *          pointer and it will be set to 0 if not calibrated and 3 if
- *          fully calibrated.
- *          See section 34.3.54
- *  @param  sys
- *          Current system calibration status, depends on status of all sensors,
- * read-only
- *  @param  gyro
- *          Current calibration status of Gyroscope, read-only
- *  @param  accel
- *          Current calibration status of Accelerometer, read-only
- *  @param  mag
- *          Current calibration status of Magnetometer, read-only
+ *          fully calibrated. See section 34.3.54 of bno055 datasheet.
+ *
+ *  @param  sys     Current system calibration status, depends on status of all sensors, read-only
+ *  @param  gyro    Current calibration status of Gyroscope, read-only
+ *  @param  accel   Current calibration status of Accelerometer, read-only
+ *  @param  mag     Current calibration status of Magnetometer, read-only
  */
 void get_calibration_state(uint8_t* sys, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
 
 /**
- *  @brief  Checks of all cal status values are set to 3 (fully calibrated)
- *  @return status of calibration
+ *  @brief  Checks that the operation mode is fully calibrated. The calibration state of a sensor is 3.
+ *
+ *  @return TRUE - system is fully calibrated.
+ *          FALSE - systme is not fully calibrated.
  */
 bool isFullyCalibrated(void);
 
 /**
- *  @brief  Reads the sensor's offset registers into a byte array
- *  @param  calibData
- *          Calibration offset (buffer size should be 22)
- *  @return true if read is successful
+ *  @brief  Reads the sensor's offset registers into a byte array.
+ *
+ *  @param  calib_data Calibration offset of type uint8_t (buffer size should be 22).
+ *
+ *  @return ESP_OK - got sensor offsets successfully.
+ *          ESP_FAIL - fail to get sensor offsets.
  */
-esp_err_t get_sensor_offsets(uint8_t* calibData);
+esp_err_t get_sensor_offsets(uint8_t* calib_data);
 
 /**
- *  @brief  Reads the sensor's offset registers into an offset struct to work with raw data
- *  @param  offsets type of offsets
- *  @return true if read is successful
+ *  @brief  Writes the sensor's offset registers from a byte array.
+ *
+ *  @param  calib_data Calibration offset of type uint8_t (buffer size should be 22).
+ *
+ *  @return ESP_OK - succesfully set sensor offset data.
+ *          ESP_FAIL - fail to set sensor offset data.
+ */
+esp_err_t set_sensor_offset(uint8_t* calib_data);
+
+/**
+ *  @brief  Reads the sensor's offset registers into an offset struct to work with raw data.
+ *
+ *  @param  offsets typedef struct of type bno055_offsets_t*
+ *                      int16_t accel_offset_x;  x acceleration offset
+ *                      int16_t accel_offset_y;  y acceleration offset
+ *                      int16_t accel_offset_z;  z acceleration offset
+ *                      int16_t mag_offset_x;    x magnetometer offset
+ *                      int16_t mag_offset_y;    y magnetometer offset
+ *                      int16_t mag_offset_z;    z magnetometer offset
+ *                      int16_t gyro_offset_x;   x gyroscrope offset
+ *                      int16_t gyro_offset_y;   y gyroscrope offset
+ *                      int16_t gyro_offset_z;   z gyroscrope offset
+ *                      int16_t accel_radius;    acceleration radius
+ *                      int16_t mag_radius;      magnetometer radius
+ *
+ *  @return ESP_OK - read sensor offsets successfully.
+ *          ESP_FAIL - fial to read sensor offsets.
  */
 esp_err_t get_sensor_offsets_struct(bno055_offsets_t* offsets);
 
 /**
- *  @brief  Gets the temperature in degrees celsius
- *  @return temperature in degrees celsius
+ *  @brief  Gets the temperature in degrees celsius.
+ *
+ *  @return temperature in degrees celsius.
  */
 int8_t get_temp(void);
 
 /**
  *  @brief   Gets a vector reading from the specified source
- *  @param   vector_type
- *           possible vector type values
- *           [VECTOR_ACCELEROMETER
- *            VECTOR_MAGNETOMETER
- *            VECTOR_GYROSCOPE
- *            VECTOR_EULER
- *            VECTOR_LINEARACCEL
- *            VECTOR_GRAVITY]
- *  @param xyz pointer to a array of size 3
- *  @return  vector from specified source
+ *
+ *  @param   vector_type possible vector type values:
+ *                          VECTOR_ACCELEROMETER
+ *                          VECTOR_MAGNETOMETER
+ *                          VECTOR_GYROSCOPE
+ *                          VECTOR_EULER
+ *                          VECTOR_LINEARACCEL
+ *                          VECTOR_GRAVITY
+ *
+ *  @return  ESP_OK - successfully read vector.
+ *           ESP_FAIL - fail to get vector.
  */
 esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz);
 
 /**
  *  @brief  Gets a quaternion reading from the specified source
- *  @param quat pointer to an array of int16 of size 8
- *  @return quaternion reading
+ *
+ *  @param quat pointer to an array of int16 of size 8.
+ *
+ *  @return ESP_OK - succesfully read quaternion.
+ *          ESP_FAIL - could not read quaternion.
  */
 esp_err_t get_quat(int16_t* quat);
 
-
+/*** Printig helper functions ***/
+/**
+ * @brief   Print calibration profile from non-volitile storage (nvs).
+ *
+ * @return  ESP_OK - succesfully printed profile from nvs.
+ *          ESP_ERR_NVS_NOT_FOUND - profile not found in nvs.
+ *          ESP_FAIL - fail to print profile.
+*/
 esp_err_t print_calib_profile_from_nvs(void);
+
+/**
+ * @brief   Print calibration profile from bno055 sensor.
+ *
+ * @return  ESP_OK - succesfully printed profile from bno055 sensor.
+ *          ESP_FAIL - fail to print profile.
+*/
 esp_err_t print_calib_profile_from_sensor(void);
 
 /**
- * @brief   Resets the bno055 chip
+ * @brief   Print the given vector type:
+ *              VECTOR_ACCELEROMETER
+ *              VECTOR_MAGNETOMETER
+ *              VECTOR_GYROSCOPE
+ *              VECTOR_EULER
+ *              VECTOR_LINEARACCEL
+ *              VECTOR_GRAVITY
+ *
+ * @param vector_type   type of vector to be printed.
+ * @param xyz           array of type int16_t of size 3.
+ *
+ * @return  ESP_OK - succesfully printed vector.
+ *          ESP_FAIL - fail to print vector.
 */
-esp_err_t bno055_reset(void);
-
-
-esp_err_t calibrate_sensor_from_saved_profile(void);
-
-esp_err_t calibrate_sensor(void);
-
-esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
-
-esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data);
-
 esp_err_t print_vector(bno055_vector_type_t vector_type, int16_t* xyz);
+
+/**
+ * @brief   Helper function to print quaternions.
+ *
+ * @param xyz   array of type int16_t of size 3.
+ *
+ * @return  ESP_OK - successfully printed quaternion.
+ *          ESP_FAIL - fail to print quaternion.
+*/
 esp_err_t print_quat(int16_t* xyz);
 
-esp_err_t set_sensor_offset(uint8_t* calib_data);
-
-// void setMode(bno055_opmode_t mode);
 
 
-// void setAxisRemap(bno055_axis_remap_config_t remapcode);
-
-
-// void setAxisSign(bno055_axis_remap_sign_t remapsign);
-
-
-// void getRevInfo(bno055_rev_info_t*);
-
-
-// void setExtCrystalUse(boolean usextal);
-
-
-
-// int8_t getTemp();
-
-
-// void getSystemStatus(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
-
-
-// void getCalibration(uint8_t* system, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
-
-
-
-// /* Adafruit_Sensor implementation */
-// bool getEvent(sensors_event_t*);
-// bool getEvent(sensors_event_t*, adafruit_vector_type_t);
-// void getSensor(sensor_t*);
-
-// /* Functions to deal with raw calibration data */
-// bool getSensorOffsets(uint8_t* calibData);
-// bool getSensorOffsets(bno055_offsets_t& offsets_type);
-// void setSensorOffsets(const uint8_t* calibData);
-// void setSensorOffsets(const no055_offsets_t& offsets_type);
-// bool isFullyCalibrated();
-
-// /* Power managments functions */
-// void enterSuspendMode();
-// void enterNormalMode();
-
-
-
-
-
-
-// esp_err_t readLen(bno055_reg_t reg, uint8_t* buffer, size_t len);
-
-
-
-
-
-
-
-// Adafruit_I2CDevice* i2c_dev = NULL; ///< Pointer to I2C bus interface
-
-// int32_t _sensorID;
-// bno055_opmode_t _mode;
-
-
-
-
-
-// Adafruit_BNO055(int32_t sensorID = -1, uint8_t address = BNO055_ADDRESS_A,
-//     TwoWire* theWire = &Wire);
-
-
-// imu::Vector<3> getVector(adafruit_vector_type_t vector_type);
-// imu::Quaternion getQuat();
