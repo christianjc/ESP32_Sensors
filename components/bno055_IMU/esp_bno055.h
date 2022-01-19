@@ -6,9 +6,9 @@
 #include "esp_err.h"
 
 /** BNO055 Address Alternative **/
-#define BNO055_ADDRESS_A (0x28)                     // This requires the ADR pin to be low
+#define BNO055_ADDRESS_A (0x28)                     // This requires the ADR pin on the bno055 to be low
 /** BNO055 Address Default **/
-#define BNO055_ADDRESS_DEFAULT (0x29)               // This requires the ADR pin to be high
+#define BNO055_ADDRESS_DEFAULT (0x29)               // This requires the ADR pin to the bno055 to be high
 /** BNO055 Adress being used **/
 #define BNO055_ADDRESS BNO055_ADDRESS_DEFAULT
 /** BNO055 ID **/
