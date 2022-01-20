@@ -311,7 +311,7 @@ typedef struct {
  * @return  ESP_OK
  *          ESP_FAIL
 */
-esp_err_t bno055_begin();
+esp_err_t bno055_begin_i2c(bno055_opmode_t mode);
 
 /**
  * @brief   Resets the bno055 sensor and waits until communication is
@@ -331,7 +331,7 @@ esp_err_t bno055_reset(void);
  * @return  ESP_OK - sensor was successfully calibrated.
  *          ESP_FAIL - sensor could not be calibrated.
 */
-esp_err_t calibrate_sensor(void);
+esp_err_t calibrate_sensor(bool save_profile);
 
 /**
  * @brief   Calibrates the bno055 internal sensors with a previously
@@ -550,6 +550,54 @@ esp_err_t get_sensor_offsets_struct(bno055_offsets_t* offsets);
  *  @return temperature in degrees celsius.
  */
 int8_t get_temp(void);
+
+/**
+ *  @brief  Sets to use the external crystal (32.768KHz).
+ *
+ *  @param  use_external_crystal use external crystal boolean.
+ *
+ * @return  ESP_OK - external crystal was set succesfully.
+ *          ESP_FAIL - external crystal could not be set.
+ */
+esp_err_t set_external_crystal(bool use_external_crystal);
+
+/**
+ * @brief  Gets system status info.
+
+ * @param  system_status    system status info: (see section 4.3.58)
+ *                              0 = Idle
+ *                              1 = System Error
+ *                              2 = Initializing Peripherals
+ *                              3 = System Iniitalization
+ *                              4 = Executing Self-Test
+ *                              5 = Sensor fusio algorithm running
+ *                              6 = System running without fusion algorithms
+ *
+ * @param  self_test_result     self test result:
+ *                                  1 = test passed, 0 = test failed
+ *                                  Bit 0 = Accelerometer self test
+ *                                  Bit 1 = Magnetometer self test
+ *                                  Bit 2 = Gyroscope self test
+ *                                  Bit 3 = MCU self test
+ *                                  0x0F = all passed
+ *
+ * @param  system_error     system error info: (see section 4.3.59)
+ *                              0 = No error
+ *                              1 = Peripheral initialization error
+ *                              2 = System initialization error
+ *                              3 = Self test result failed
+ *                              4 = Register map value out of range
+ *                              5 = Register map address out of range
+ *                              6 = Register map write error
+ *                              7 = BNO low power mode not available for selected operat ion mode
+ *                              8 = Accelerometer power mode not available
+ *                              9 = Fusion algorithm configuration error
+ *                              A = Sensor configuration error
+ *
+ * @return ESP_OK - read system status
+ *          ESP_FAIL - fail to set page id to zero
+ */
+esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
 
 /**
  *  @brief   Gets a vector reading from the specified source

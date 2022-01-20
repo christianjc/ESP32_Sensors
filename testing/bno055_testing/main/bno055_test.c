@@ -30,7 +30,7 @@ esp_err_t calibrate_sensor_test(void);
 void app_main(void)
 {
     /** Testing bno055_begin() **/
-    esp_err_t err = bno055_begin();
+    esp_err_t err = bno055_begin_i2c(OPERATION_MODE_IMUPLUS);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not initialize communication: %x", err);
@@ -260,7 +260,7 @@ esp_err_t get_temp_test(void)
 
 esp_err_t calibrate_sensor_test(void)
 {
-    esp_err_t err = calibrate_sensor();
+    esp_err_t err = calibrate_sensor(true);
     if (err != ESP_OK)
     {
         printf("Calibration error\n");

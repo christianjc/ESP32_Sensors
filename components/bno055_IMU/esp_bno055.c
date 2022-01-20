@@ -19,10 +19,10 @@
 #include "esp_bno055.h"
 
 /** The BNO055 needs at least 500us for clock stretching.
- *  The esp32 default clock is 80 MHz.
+ *  The esp32 clock here is 80 MHz.
  *  We have the following calculation:
  *      Convert 500us to Hz:            1/(0.000,500) = 2000Hz
- *      Clock cycels to stretch clock:  (80 MHz) / (2000 Hz) = 40,000
+ *      Clock cycles to stretch clock:  (80 MHz) / (2000 Hz) = 40,000 cycles
  *      INITIAL_MASTER_TOUT = 40,000 clock cycles
  */
 #define INITIAL_MASTER_TOUT         (40000)     
@@ -151,7 +151,7 @@ static esp_err_t print_calib_profile(uint8_t* calib_data) {
  * @return  ESP_OK
  *          ESP_FAIL
 */
-esp_err_t bno055_begin(void) {
+esp_err_t bno055_begin_i2c(bno055_opmode_t mode) {
     /** Inintialize the i2c master configuration **/
     esp_err_t err = i2c_master_init();
     if (err != ESP_OK) {
@@ -160,7 +160,7 @@ esp_err_t bno055_begin(void) {
         return err;
     }
 
-    /** Set the timeout for the communication bus **/
+    /** Set the timeout for the communication bus (clock stretching) **/
     err = i2c_set_timeout((i2c_port_t)I2C_NUM_0, (int)INITIAL_MASTER_TOUT);
     if (err != ESP_OK) {
         return err;
@@ -179,6 +179,12 @@ esp_err_t bno055_begin(void) {
     }
     ESP_LOGD(TAG, "CHIP ID: %x", bno055_id);
 
+    err = set_powermode(POWER_MODE_NORMAL);
+    if (err != ESP_OK) return err;
+
+    err = set_opmode(mode);
+    if (err != ESP_OK) return err;
+
     // Initialize NVS
     err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -189,14 +195,11 @@ esp_err_t bno055_begin(void) {
     }
     ESP_ERROR_CHECK(err);
 
-    err = bno055_reset();
-    if (err != ESP_OK) return err;
-
     /** Calibrate sensor or use calibration profile **/
     err = calibrate_sensor_from_saved_profile();
     if (err != ESP_OK) {
         if (err == ESP_ERR_NVS_NOT_FOUND) {
-            err = calibrate_sensor();
+            err = calibrate_sensor(true);
             if (err != ESP_OK) return err;
         }
         else {
@@ -231,7 +234,7 @@ esp_err_t bno055_reset(void) {
 }
 
 /**
- * @brief   Calibrate the necessary sensors. The scurrent setting
+ * @brief   Calibrate the necessary sensors. The current setting
  *          is to calibrate for operation mode: IMU. This can be change
  *          later to include more operation modes. nvs_flash_init() must be
  *          called before this function can be used.
@@ -239,7 +242,7 @@ esp_err_t bno055_reset(void) {
  * @return  ESP_OK - sensor was successfully calibrated.
  *          ESP_FAIL - sensor could not be calibrated.
 */
-esp_err_t calibrate_sensor(void) {
+esp_err_t calibrate_sensor(bool save_profile) {
 
     ESP_LOGD(TAG, "[calibrate_sensor]: Please start calibration");
     /** Reset sensor to beging calibration **/
@@ -264,17 +267,21 @@ esp_err_t calibrate_sensor(void) {
         counter++;
     }
     ESP_LOGD(TAG, "[calibrate_sensor]: sensor is now calibrated!! ");
-    ESP_LOGD(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
 
     /** Save calibrated profile to non-volitile storage **/
-    uint8_t calib_data[22];
-    err = get_sensor_offsets(calib_data);
-    if (err != ESP_OK) return err;
+    if (save_profile) {
+        ESP_LOGD(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
 
-    err = save_calib_profile_to_nvs(calib_data);
-    if (err != ESP_OK) return err;
+        uint8_t calib_data[22];
+        err = get_sensor_offsets(calib_data);
+        if (err != ESP_OK) return err;
 
-    ESP_LOGD(TAG, "[calibrate_sensor]: Calibrated profile was saved to nvs succesfully!");
+        err = save_calib_profile_to_nvs(calib_data);
+        if (err != ESP_OK) return err;
+
+        ESP_LOGD(TAG, "[calibrate_sensor]: Calibrated profile was saved to nvs succesfully!");
+    }
+
     return err;
 }
 
@@ -309,7 +316,7 @@ esp_err_t calibrate_sensor_from_saved_profile(void) {
 /**
  * @brief   Gets the calibration profile from the non-volatile storate (nvs).
  *          nvs_flash_init() must be called before this function can
- *          be used
+ *          be used.
  *
  * @param calib_data    Pointer to a uint8_t array of size 22
  *
@@ -317,7 +324,7 @@ esp_err_t calibrate_sensor_from_saved_profile(void) {
  *          ESP_FAIL
  *          ESP_ERR_INVALID_ARG
 */
-esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data) {
+esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data) {     // TODO: could be static?
     /** Open nvs **/
     nvs_handle_t my_handle;
     esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
@@ -343,7 +350,7 @@ esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data) {
  * @return  ESP_OK - calibration profile was successfully saved.
  *          ESP_FAIL -  failed to save profile to nvs.
 */
-esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {
+esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data) {      // TODO: could be static?
 
     /** Open **/
     nvs_handle_t my_handle;
@@ -766,6 +773,91 @@ esp_err_t get_sensor_offsets_struct(bno055_offsets_t* offsets) {
 int8_t get_temp(void) {
     int8_t temp = (int8_t)(read8(BNO055_TEMP_ADDR));
     return temp;
+}
+
+/**
+ *  @brief  Sets to use the external crystal (32.768KHz).
+ *
+ *  @param  use_external_crystal use external crystal boolean.
+ *
+ * @return  ESP_OK - external crystal was set succesfully.
+ *          ESP_FAIL - external crystal could not be set.
+ */
+esp_err_t set_external_crystal(bool use_external_crystal) {
+    bno055_opmode_t opmode = get_opmode();
+
+    /* Switch to config mode */
+    esp_err_t err = set_opmode(OPERATION_MODE_CONFIG);
+    if (err != ESP_OK) return err;
+
+    err = write8(BNO055_PAGE_ID_ADDR, 0);
+    if (err != ESP_OK) return err;
+
+    if (use_external_crystal) {
+        err = write8(BNO055_SYS_TRIGGER_ADDR, 0x80);
+        if (err != ESP_OK) return err;
+    }
+    else {
+        err = write8(BNO055_SYS_TRIGGER_ADDR, 0x00);
+        if (err != ESP_OK) return err;
+    }
+    /* Set previouse operation mode */
+    err = set_opmode(opmode);
+    return err;
+}
+
+/**
+ * @brief  Gets system status info.
+
+ * @param  system_status    system status info: (see section 4.3.58)
+ *                              0 = Idle
+ *                              1 = System Error
+ *                              2 = Initializing Peripherals
+ *                              3 = System Iniitalization
+ *                              4 = Executing Self-Test
+ *                              5 = Sensor fusio algorithm running
+ *                              6 = System running without fusion algorithms
+ *
+ * @param  self_test_result     self test result:
+ *                                  1 = test passed, 0 = test failed
+ *                                  Bit 0 = Accelerometer self test
+ *                                  Bit 1 = Magnetometer self test
+ *                                  Bit 2 = Gyroscope self test
+ *                                  Bit 3 = MCU self test
+ *                                  0x0F = all passed
+ *
+ * @param  system_error     system error info: (see section 4.3.59)
+ *                              0 = No error
+ *                              1 = Peripheral initialization error
+ *                              2 = System initialization error
+ *                              3 = Self test result failed
+ *                              4 = Register map value out of range
+ *                              5 = Register map address out of range
+ *                              6 = Register map write error
+ *                              7 = BNO low power mode not available for selected operat ion mode
+ *                              8 = Accelerometer power mode not available
+ *                              9 = Fusion algorithm configuration error
+ *                              A = Sensor configuration error
+ *
+ * @return ESP_OK - read system status
+ *          ESP_FAIL - fail to set page id to zero
+ */
+esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error) {
+    esp_err_t err = write8(BNO055_PAGE_ID_ADDR, 0);
+    if (err != ESP_OK) return err;
+
+    if (system_status != NULL) {
+        *system_status = read8(BNO055_SYS_STAT_ADDR);
+    }
+
+    if (self_test_result != NULL) {
+        *self_test_result = read8(BNO055_SELFTEST_RESULT_ADDR);
+    }
+
+    if (system_error != NULL) {
+        *system_error = read8(BNO055_SYS_ERR_ADDR);
+    }
+    return err;
 }
 
 /**
