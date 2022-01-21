@@ -1,4 +1,30 @@
-
+/**
+ *  MIT License
+ *  Copyright (c) 2021 Christian Castaneda <github.com/christianjc>
+ * 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ * 
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ * 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ * 
+ * 
+ *          https://www.bosch-sensortec.com/bst/products/all_products/bno055
+ *          Reference Datasheet: BST_BNO055_DS000_14 (consulted in January 2018)
+ * 
+*/
 
 #pragma once
 #include <stdio.h>
@@ -18,9 +44,9 @@
 #include "freertos/task.h"
 
 /** BNO055 Address Alternative **/
-#define BNO055_ADDRESS_A (0x28)                     // This requires the ADR pin on the bno055 to be low
+#define BNO055_ADDRESS_A (0x28) // This requires the ADR pin on the bno055 to be low
 /** BNO055 Address Default **/
-#define BNO055_ADDRESS_DEFAULT (0x29)               // This requires the ADR pin to the bno055 to be high
+#define BNO055_ADDRESS_DEFAULT (0x29) // This requires the ADR pin to the bno055 to be high
 /** BNO055 Adress being used **/
 #define BNO055_ADDRESS BNO055_ADDRESS_DEFAULT
 /** BNO055 ID **/
@@ -32,18 +58,18 @@
 #define NUM_BNO055_EULER_REGISTERS (6)
 
 /** I2C configuration settings **/
-#define I2C_MASTER_SCL_IO           (19)//CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           (18)//CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
-#define I2C_MASTER_NUM              I2C_NUM_0                        /*!< I2C master i2c port number */
-#define I2C_MASTER_FREQ_HZ          400000                     /*!< I2C master clock frequency */
-#define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_TIMEOUT_MS       1000                       /*!< I2C master timeout */
-#define I2C_CONNECTION_TO_TRY       10                          /*!< I2C number of times to try to send a message */
-
+#define I2C_MASTER_SCL_IO (19)      //CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_IO (18)      //CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_NUM I2C_NUM_0    /*!< I2C master i2c port number */
+#define I2C_MASTER_FREQ_HZ 400000   /*!< I2C master clock frequency */
+#define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_TIMEOUT_MS 1000  /*!< I2C master timeout */
+#define I2C_CONNECTION_TO_TRY 10    /*!< I2C number of times to try to send a message */
 
 /** BNO055 Registers Adress **/
-typedef enum {
+typedef enum
+{
     /* Page id register definition */
     BNO055_PAGE_ID_ADDR = 0X07,
 
@@ -194,17 +220,17 @@ typedef enum {
     MAG_RADIUS_MSB_ADDR = 0X6A
 } bno055_reg_t;
 
-
 /** BNO055 power settings */
-typedef enum {
+typedef enum
+{
     POWER_MODE_NORMAL = 0X00,
     POWER_MODE_LOWPOWER = 0X01,
     POWER_MODE_SUSPEND = 0X02
 } bno055_powermode_t;
 
-
 /** Operation mode settings **/
-typedef enum {
+typedef enum
+{
     OPERATION_MODE_CONFIG = 0X00,
     OPERATION_MODE_ACCONLY = 0X01,
     OPERATION_MODE_MAGONLY = 0X02,
@@ -220,9 +246,9 @@ typedef enum {
     OPERATION_MODE_NDOF = 0X0C
 } bno055_opmode_t;
 
-
 /** Remap settings **/
-typedef enum {
+typedef enum
+{
     REMAP_CONFIG_P0 = 0x21,
     REMAP_CONFIG_P1 = 0x24, // default
     REMAP_CONFIG_P2 = 0x24,
@@ -234,7 +260,8 @@ typedef enum {
 } bno055_axis_remap_config_t;
 
 /** Remap Signs **/
-typedef enum {
+typedef enum
+{
     REMAP_SIGN_P0 = 0x04,
     REMAP_SIGN_P1 = 0x00, // default
     REMAP_SIGN_P2 = 0x06,
@@ -245,9 +272,9 @@ typedef enum {
     REMAP_SIGN_P7 = 0x05
 } bno055_axis_remap_sign_t;
 
-
 /** Vector Mappings **/
-typedef enum {
+typedef enum
+{
     VECTOR_ACCELEROMETER = BNO055_ACCEL_DATA_X_LSB_ADDR,
     VECTOR_MAGNETOMETER = BNO055_MAG_DATA_X_LSB_ADDR,
     VECTOR_GYROSCOPE = BNO055_GYRO_DATA_X_LSB_ADDR,
@@ -256,28 +283,33 @@ typedef enum {
     VECTOR_GRAVITY = BNO055_GRAVITY_DATA_X_LSB_ADDR
 } bno055_vector_type_t;
 
-typedef enum {
-    UNITS_MS2 = 0x00,   /**< Meters per second squared */
-    UNITS_MG = 0x01,    /**< Mass times gravity */
+typedef enum
+{
+    UNITS_MS2 = 0x00, /**< Meters per second squared */
+    UNITS_MG = 0x01,  /**< Mass times gravity */
 } bno055_accel_unit_t;
 
-typedef enum {
-    UNITS_DPS = 0x00,   /**< Degrees per second */
-    UNITS_RPS = 0x02,   /**< Radians per second */
+typedef enum
+{
+    UNITS_DPS = 0x00, /**< Degrees per second */
+    UNITS_RPS = 0x02, /**< Radians per second */
 } bno055_angular_rate_unit_t;
 
-typedef enum {
-    UNITS_DEGREES = 0x00,   /**< Degrees */
-    UNITS_RADIANS = 0x04,   /**< Rdians */
+typedef enum
+{
+    UNITS_DEGREES = 0x00, /**< Degrees */
+    UNITS_RADIANS = 0x04, /**< Rdians */
 } bno055_euler_unit_t;
 
-typedef enum {
-    UNITS_CELSIUS = 0x00,       /**< Degrees Celsius */
-    UNITS_FAHRENHEIT = 0x10,    /**< Degrees Fahrenheit */
+typedef enum
+{
+    UNITS_CELSIUS = 0x00,    /**< Degrees Celsius */
+    UNITS_FAHRENHEIT = 0x10, /**< Degrees Fahrenheit */
 } bno055_temp_unit_t;
 
 /** A structure to configure the units **/
-typedef struct {
+typedef struct
+{
     bno055_accel_unit_t accel;
     bno055_angular_rate_unit_t angular_rate;
     bno055_euler_unit_t euler_angel;
@@ -285,7 +317,8 @@ typedef struct {
 } bno055_units_config_t;
 
 /** A structure to represent offsets **/
-typedef struct {
+typedef struct
+{
     int16_t accel_offset_x; /**< x acceleration offset */
     int16_t accel_offset_y; /**< y acceleration offset */
     int16_t accel_offset_z; /**< z acceleration offset */
@@ -303,17 +336,15 @@ typedef struct {
     int16_t mag_radius; /**< magnetometer radius */
 } bno055_offsets_t;
 
-
 /** A structure to represent revisions **/
-typedef struct {
+typedef struct
+{
     uint8_t accel_rev; /**< acceleration rev */
     uint8_t mag_rev;   /**< magnetometer rev */
     uint8_t gyro_rev;  /**< gyroscrope rev */
     uint16_t sw_rev;   /**< SW rev */
     uint8_t bl_rev;    /**< bootloader rev */
 } bno055_rev_info_t;
-
-
 
 /**
  * @brief   Initiallizes i2c communication between esp32 and bno055 sensor
@@ -367,7 +398,7 @@ esp_err_t calibrate_sensor_from_saved_profile(void);
  *          ESP_FAIL
  *          ESP_ERR_INVALID_ARG
 */
-esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
+esp_err_t get_calib_profile_from_nvs(uint8_t *calib_data);
 
 /**
  * @brief   Saves calibrated profile data to the non-volitile storage (nvs)
@@ -379,7 +410,7 @@ esp_err_t get_calib_profile_from_nvs(uint8_t* calib_data);
  * @return  ESP_OK - calibration profile was successfully saved.
  *          ESP_FAIL -  failed to save profile to nvs.
 */
-esp_err_t save_calib_profile_to_nvs(uint8_t* calib_data);
+esp_err_t save_calib_profile_to_nvs(uint8_t *calib_data);
 
 /**
  * @brief   Sets bno055 to one of the following operation mode:
@@ -493,7 +524,7 @@ bno055_axis_remap_sign_t get_axis_sign(void);
 * @return   ESP_OK - unit config was successfully set.
  *          ESP_FAIL - unit config could not be set.
 */
-esp_err_t unit_config(bno055_units_config_t* config);
+esp_err_t unit_config(bno055_units_config_t *config);
 
 /**
  *  @brief  Gets current calibration state.  Each value should be a uint8_t
@@ -505,7 +536,7 @@ esp_err_t unit_config(bno055_units_config_t* config);
  *  @param  accel   Current calibration status of Accelerometer, read-only
  *  @param  mag     Current calibration status of Magnetometer, read-only
  */
-void get_calibration_state(uint8_t* sys, uint8_t* gyro, uint8_t* accel, uint8_t* mag);
+void get_calibration_state(uint8_t *sys, uint8_t *gyro, uint8_t *accel, uint8_t *mag);
 
 /**
  *  @brief  Checks that the operation mode is fully calibrated. The calibration state of a sensor is 3.
@@ -523,7 +554,7 @@ bool isFullyCalibrated(void);
  *  @return ESP_OK - got sensor offsets successfully.
  *          ESP_FAIL - fail to get sensor offsets.
  */
-esp_err_t get_sensor_offsets(uint8_t* calib_data);
+esp_err_t get_sensor_offsets(uint8_t *calib_data);
 
 /**
  *  @brief  Writes the sensor's offset registers from a byte array.
@@ -533,7 +564,7 @@ esp_err_t get_sensor_offsets(uint8_t* calib_data);
  *  @return ESP_OK - succesfully set sensor offset data.
  *          ESP_FAIL - fail to set sensor offset data.
  */
-esp_err_t set_sensor_offset(uint8_t* calib_data);
+esp_err_t set_sensor_offset(uint8_t *calib_data);
 
 /**
  *  @brief  Reads the sensor's offset registers into an offset struct to work with raw data.
@@ -554,7 +585,7 @@ esp_err_t set_sensor_offset(uint8_t* calib_data);
  *  @return ESP_OK - read sensor offsets successfully.
  *          ESP_FAIL - fial to read sensor offsets.
  */
-esp_err_t get_sensor_offsets_struct(bno055_offsets_t* offsets);
+esp_err_t get_sensor_offsets_struct(bno055_offsets_t *offsets);
 
 /**
  *  @brief  Gets the temperature in degrees celsius.
@@ -609,7 +640,7 @@ esp_err_t set_external_crystal(bool use_external_crystal);
  * @return ESP_OK - read system status
  *          ESP_FAIL - fail to set page id to zero
  */
-esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, uint8_t* system_error);
+esp_err_t get_system_status(uint8_t *system_status, uint8_t *self_test_result, uint8_t *system_error);
 
 /**
  *  @brief   Gets a vector reading from the specified source
@@ -627,7 +658,7 @@ esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, u
  *  @return  ESP_OK - successfully read vector.
  *           ESP_FAIL - fail to get vector.
  */
-esp_err_t get_vector(bno055_vector_type_t vector_type, double* xyz);
+esp_err_t get_vector(bno055_vector_type_t vector_type, double *xyz);
 
 /**
  *  @brief  Gets a quaternion reading from the specified source
@@ -637,7 +668,7 @@ esp_err_t get_vector(bno055_vector_type_t vector_type, double* xyz);
  *  @return ESP_OK - succesfully read quaternion.
  *          ESP_FAIL - could not read quaternion.
  */
-esp_err_t get_quat(int16_t* quat);
+esp_err_t get_quat(int16_t *quat);
 
 /*** Printig helper functions ***/
 /**
@@ -672,7 +703,7 @@ esp_err_t print_calib_profile_from_sensor(void);
  * @return  ESP_OK - succesfully printed vector.
  *          ESP_FAIL - fail to print vector.
 */
-esp_err_t print_vector(bno055_vector_type_t vector_type, double* xyz);
+esp_err_t print_vector(bno055_vector_type_t vector_type, double *xyz);
 
 /**
  * @brief   Helper function to print quaternions.
@@ -682,7 +713,4 @@ esp_err_t print_vector(bno055_vector_type_t vector_type, double* xyz);
  * @return  ESP_OK - successfully printed quaternion.
  *          ESP_FAIL - fail to print quaternion.
 */
-esp_err_t print_quat(int16_t* xyz);
-
-
-
+esp_err_t print_quat(int16_t *xyz);

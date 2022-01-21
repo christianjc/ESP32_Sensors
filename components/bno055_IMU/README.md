@@ -27,6 +27,6 @@ Wiring
 
 I2C
 
-ADR -> 3v0 (HIGH) -> logic high enables bno055 default address (0x29)
-SCL -> SCL (Default: GPIO_NUM_19)
-SDA -> SDA (Default: GPIO_NUM_18)
+ADR -> 3v0 (HIGH) -> logic high enables bno055 default address (0x29).
+SCL -> SCL (Default: GPIO_NUM_19).
+SDA -> SDA (Default: GPIO_NUM_18).
