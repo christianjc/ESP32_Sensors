@@ -1,21 +1,5 @@
 // i2c.c i2c.h i2c_hal.c i2c_hal.h i2c_ll.h reference documents
 
-#include <stdio.h>
-#include <string.h>
-
-#include "esp_log.h"
-#include "errno.h"
-#include "esp_system.h"
-
-#include "nvs_flash.h"
-#include "nvs.h"
-#include "driver/i2c.h"
-
-#include "freertos/FreeRTOS.h"
-//#include "freertos/semphr.h"
-#include "freertos/task.h"
-//#include "freertos/queue.h"
-
 #include "esp_bno055.h"
 
 /** The BNO055 needs at least 500us for clock stretching.
@@ -195,18 +179,6 @@ esp_err_t bno055_begin_i2c(bno055_opmode_t mode) {
     }
     ESP_ERROR_CHECK(err);
 
-    /** Calibrate sensor or use calibration profile **/
-    err = calibrate_sensor_from_saved_profile();
-    if (err != ESP_OK) {
-        if (err == ESP_ERR_NVS_NOT_FOUND) {
-            err = calibrate_sensor(true);
-            if (err != ESP_OK) return err;
-        }
-        else {
-            return err;
-        }
-    }
-
     return err;
 }
 
@@ -244,7 +216,7 @@ esp_err_t bno055_reset(void) {
 */
 esp_err_t calibrate_sensor(bool save_profile) {
 
-    ESP_LOGD(TAG, "[calibrate_sensor]: Please start calibration");
+    ESP_LOGI(TAG, "[calibrate_sensor]: Please start calibration");
     /** Reset sensor to beging calibration **/
     esp_err_t err = bno055_reset();
     if (err != ESP_OK) return  err;
@@ -259,18 +231,18 @@ esp_err_t calibrate_sensor(bool save_profile) {
         if (counter > 100) {
             return ESP_FAIL;
         }
-        ESP_LOGD(TAG, "[calibrate_sensor]: is not calibrated: counter %d", counter);
+        ESP_LOGI(TAG, "[calibrate_sensor]: is not calibrated: counter %d", counter);
         uint8_t system, gyro, accel, mag;
         get_calibration_state(&system, &gyro, &accel, &mag);
-        ESP_LOGD(TAG, "[calibrate_sensor]: System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
+        ESP_LOGI(TAG, "[calibrate_sensor]: System: %x Gyro: %x Accel: %x Mag: %x", system, gyro, accel, mag);
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         counter++;
     }
-    ESP_LOGD(TAG, "[calibrate_sensor]: sensor is now calibrated!! ");
+    ESP_LOGI(TAG, "[calibrate_sensor]: sensor is now calibrated!! ");
 
     /** Save calibrated profile to non-volitile storage **/
     if (save_profile) {
-        ESP_LOGD(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
+        ESP_LOGI(TAG, "[calibrate_sensor]: Saving calibrated profile to non-volatile memory...");
 
         uint8_t calib_data[22];
         err = get_sensor_offsets(calib_data);
@@ -279,7 +251,7 @@ esp_err_t calibrate_sensor(bool save_profile) {
         err = save_calib_profile_to_nvs(calib_data);
         if (err != ESP_OK) return err;
 
-        ESP_LOGD(TAG, "[calibrate_sensor]: Calibrated profile was saved to nvs succesfully!");
+        ESP_LOGI(TAG, "[calibrate_sensor]: Calibrated profile was saved to nvs succesfully!");
     }
 
     return err;
@@ -302,6 +274,13 @@ esp_err_t calibrate_sensor_from_saved_profile(void) {
     case ESP_OK:
         err = set_sensor_offset(calib_data);
         printf("check if isFullyCalibrated is true after updating sensor ofsets.....\nisFullyCalibrated:  ");
+        uint8_t count = 0;
+        while (!isFullyCalibrated() && count < 100) {
+            printf("not calibrated\n");
+            count++;
+            vTaskDelay(500 / portTICK_RATE_MS);
+        }
+
         printf((isFullyCalibrated()) ? "True!\n" : "False\n");
         break;
     case ESP_ERR_NVS_NOT_FOUND:
@@ -875,7 +854,7 @@ esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, u
  *
  *  @p TODO: figure out the convertion units when units are changed
  */
-esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz) {
+esp_err_t get_vector(bno055_vector_type_t vector_type, double* xyz) {
     esp_err_t err = ESP_OK;
     uint8_t buffer[6];
     memset(buffer, 0, 6);
@@ -896,6 +875,7 @@ esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz) {
     x = ((int16_t)buffer[0]) | (((int16_t)buffer[1]) << 8);
     y = ((int16_t)buffer[2]) | (((int16_t)buffer[3]) << 8);
     z = ((int16_t)buffer[4]) | (((int16_t)buffer[5]) << 8);
+    //printf("x: %d\n", x);
 
     /**
      * Convert the value to an appropriate range (section 3.6.4)
@@ -1054,54 +1034,54 @@ esp_err_t print_calib_profile_from_sensor(void) {
  * @return  ESP_OK - succesfully printed vector.
  *          ESP_FAIL - fail to print vector.
 */
-esp_err_t print_vector(bno055_vector_type_t vector_type, int16_t* xyz) {
+esp_err_t print_vector(bno055_vector_type_t vector_type, double* xyz) {
     switch (vector_type) {
     case VECTOR_MAGNETOMETER:
         /* 1uT = 16 LSB */
         printf("\n            **** Magnetometer Vector ****\n");
-        printf("Mag X: %d [Micro Tesla]\n", xyz[0]);
-        printf("Mag Y: %d [Micro Tesla]\n", xyz[1]);
-        printf("Mag Z: %d [Micro Tesla]\n", xyz[2]);
+        printf("Mag X: %f [Micro Tesla]\n", xyz[0]);
+        printf("Mag Y: %f [Micro Tesla]\n", xyz[1]);
+        printf("Mag Z: %f [Micro Tesla]\n", xyz[2]);
         break;
     case VECTOR_GYROSCOPE:
         /* 1dps = 16 LSB */
         /* 1rps = 900 LSB */
         printf("\n            **** Gyroscope Vector ****\n");
-        printf("Gyro X: %d [dps]\n", xyz[0]);
-        printf("Gyro Y: %d [dps]\n", xyz[1]);
-        printf("Gyro Z: %d [dps]\n", xyz[2]);
+        printf("Gyro X: %f [dps]\n", xyz[0]);
+        printf("Gyro Y: %f [dps]\n", xyz[1]);
+        printf("Gyro Z: %f [dps]\n", xyz[2]);
         break;
     case VECTOR_EULER:
         /* 1 degree = 16 LSB */
         /* 1 radian = 900 LSB */
         printf("\n            **** Euler Vector ****\n");
-        printf("Euler Heading -Z: %d [degrees]\n", xyz[0]);
-        printf("Euler Roll    -Y: %d [degrees]\n", xyz[1]);
-        printf("Euler Pitch   -X: %d [degrees]\n", xyz[2]);
+        printf("Euler Heading -Z: %f [degrees]\n", xyz[0]);
+        printf("Euler Roll    -Y: %f [degrees]\n", xyz[1]);
+        printf("Euler Pitch   -X: %f [degrees]\n", xyz[2]);
         break;
     case VECTOR_ACCELEROMETER:
         /* 1m/s^2 = 100 LSB */
         /* 1mg = 1 LSB */
         printf("\n            **** Accelerometer Vector ****\n");
-        printf("Accelerometer X: %d [m/s^2]\n", xyz[0]);
-        printf("Accelerometer Y: %d [m/s^2]\n", xyz[1]);
-        printf("Accelerometer Z: %d [m/s^2]\n", xyz[2]);
+        printf("Accelerometer X: %f [m/s^2]\n", xyz[0]);
+        printf("Accelerometer Y: %f [m/s^2]\n", xyz[1]);
+        printf("Accelerometer Z: %f [m/s^2]\n", xyz[2]);
         break;
     case VECTOR_LINEARACCEL:
         /* 1m/s^2 = 100 LSB */
         /* 1mg = 1 LSB */
         printf("\n            **** Linear Acceleration Vector ****\n");
-        printf("Acceleration X: %d [m/s^2]\n", xyz[0]);
-        printf("Acceleration Y: %d [m/s^2]\n", xyz[1]);
-        printf("Acceleration Z: %d [m/s^2]\n", xyz[2]);
+        printf("Acceleration X: %f [m/s^2]\n", xyz[0]);
+        printf("Acceleration Y: %f [m/s^2]\n", xyz[1]);
+        printf("Acceleration Z: %f [m/s^2]\n", xyz[2]);
         break;
     case VECTOR_GRAVITY:
         /* 1m/s^2 = 100 LSB */
         /* 1mg = 1 LSB */
         printf("\n            **** Gravity Vector ****\n");
-        printf("Grativy X: %d [m/s^2]\n", xyz[0]);
-        printf("Gravity Y: %d [m/s^2]\n", xyz[1]);
-        printf("Gravity Z: %d [m/s^2]\n", xyz[2]);
+        printf("Grativy X: %f [m/s^2]\n", xyz[0]);
+        printf("Gravity Y: %f [m/s^2]\n", xyz[1]);
+        printf("Gravity Z: %f [m/s^2]\n", xyz[2]);
         break;
     }
     return ESP_OK;

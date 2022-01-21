@@ -2,8 +2,20 @@
 
 #pragma once
 #include <stdio.h>
+#include <string.h>
+
 #include "esp_types.h"
 #include "esp_err.h"
+#include "esp_log.h"
+#include "esp_system.h"
+#include "errno.h"
+
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "driver/i2c.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 /** BNO055 Address Alternative **/
 #define BNO055_ADDRESS_A (0x28)                     // This requires the ADR pin on the bno055 to be low
@@ -610,10 +622,12 @@ esp_err_t get_system_status(uint8_t* system_status, uint8_t* self_test_result, u
  *                          VECTOR_LINEARACCEL
  *                          VECTOR_GRAVITY
  *
+ * @param   xyz double array of size 3
+ *
  *  @return  ESP_OK - successfully read vector.
  *           ESP_FAIL - fail to get vector.
  */
-esp_err_t get_vector(bno055_vector_type_t vector_type, int16_t* xyz);
+esp_err_t get_vector(bno055_vector_type_t vector_type, double* xyz);
 
 /**
  *  @brief  Gets a quaternion reading from the specified source
@@ -658,7 +672,7 @@ esp_err_t print_calib_profile_from_sensor(void);
  * @return  ESP_OK - succesfully printed vector.
  *          ESP_FAIL - fail to print vector.
 */
-esp_err_t print_vector(bno055_vector_type_t vector_type, int16_t* xyz);
+esp_err_t print_vector(bno055_vector_type_t vector_type, double* xyz);
 
 /**
  * @brief   Helper function to print quaternions.

@@ -7,4 +7,4 @@ set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/../sensors/components)
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(bno055_test)
+project(2d_moving_block)
