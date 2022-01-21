@@ -663,12 +663,12 @@ esp_err_t get_vector(bno055_vector_type_t vector_type, double *xyz);
 /**
  *  @brief  Gets a quaternion reading from the specified source
  *
- *  @param quat pointer to an array of int16 of size 8.
+ *  @param quat pointer to an array of double of size 4.
  *
  *  @return ESP_OK - succesfully read quaternion.
  *          ESP_FAIL - could not read quaternion.
  */
-esp_err_t get_quat(int16_t *quat);
+esp_err_t get_quat(double *quat);
 
 /*** Printig helper functions ***/
 /**
@@ -708,9 +708,9 @@ esp_err_t print_vector(bno055_vector_type_t vector_type, double *xyz);
 /**
  * @brief   Helper function to print quaternions.
  *
- * @param xyz   array of type int16_t of size 3.
+ * @param xyz   array of type double of size 4.
  *
  * @return  ESP_OK - successfully printed quaternion.
  *          ESP_FAIL - fail to print quaternion.
 */
-esp_err_t print_quat(int16_t *xyz);
+esp_err_t print_quat(double *xyz);
