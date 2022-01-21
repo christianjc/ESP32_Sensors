@@ -17,16 +17,20 @@ UART will be supported in the future.
 
 NOTE: this code is not production ready yet.
 
-cd <YOUR_PROJECT_ROOT>
-mkdir components/
-cd components/
+find the esp-idf folder and clone this repository
+
+cd <YOUR_ESP-IDF_FOLDER_LOCATION>
+
+git clone https://github.com/christianjc/ESP32_Sensors.git
 
 for more details see examples/
 
-Wiring
+# Wiring
 
 I2C
 
-ADR -> 3v0 (HIGH) -> logic high enables bno055 default address (0x29).
-SCL -> SCL (Default: GPIO_NUM_19).
-SDA -> SDA (Default: GPIO_NUM_18).
+ADR -> 3v0 (HIGH) -> logic high enables bno055 default address (0x29)
+
+SCL -> SCL (Default: GPIO_NUM_19)
+
+SDA -> SDA (Default: GPIO_NUM_18)
