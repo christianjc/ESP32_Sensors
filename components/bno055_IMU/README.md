@@ -10,8 +10,8 @@ Tested on ESP32-WROOM-32E with BNO055 Adafruit's Breakout Board.
 
 # Supported Interfaces
 
-I²C - fully supported\*
-\*UART will be supported in the future.
+I²C - fully supported
+UART will be supported in the future.
 
 # Getting Started
 
