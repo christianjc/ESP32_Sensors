@@ -328,7 +328,7 @@ esp_err_t get_vector_test(void)
  *  @p TODO: figure out the convertion units when units are changed
  */
     // test getting vector data from bno055
-    int16_t xyz[3];
+    double xyz[3];
 
     esp_err_t err = get_vector(VECTOR_EULER, xyz);
     for (int i = 0; i < 2000; i++)

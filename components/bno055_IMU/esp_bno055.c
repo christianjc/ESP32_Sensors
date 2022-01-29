@@ -1219,9 +1219,9 @@ esp_err_t print_vector(bno055_vector_type_t vector_type, double *xyz)
 esp_err_t print_quat(double *xyz)
 {
     printf("\n            **** Quaternion ****\n");
-    printf("W: %d\n", xyz[0]);
-    printf("X: %d\n", xyz[0]);
-    printf("Y: %d\n", xyz[1]);
-    printf("Z: %d\n", xyz[2]);
+    printf("W: %f\n", xyz[0]);
+    printf("X: %f\n", xyz[0]);
+    printf("Y: %f\n", xyz[1]);
+    printf("Z: %f\n", xyz[2]);
     return ESP_OK;
 }
